@@ -289,7 +289,8 @@ ob_start();
         <?php foreach($tableCheck as $t=>$ok): ?>
         <div style="display:flex;align-items:center;gap:.35rem;font-size:.72rem;padding:.25rem .4rem;border-radius:4px;background:<?=$ok?'#f0fdf4':'#fff5f5'?>">
           <span><?=$ok?'✅':'❌'?></span>
-          <code style="color:<?=$ok?'#15803d':'#dc2626''>'><?=$t?></code>
+          <?php $tc=$ok?'#15803d':'#dc2626'; ?>
+          <code style="color:<?=$tc?>"><?=$t?></code>
         </div>
         <?php endforeach; ?>
       </div>
