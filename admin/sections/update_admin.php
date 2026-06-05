@@ -6,7 +6,9 @@ define('CC_GITHUB_REPO',    'DevHBB/CMS_Club');
 define('CC_GITHUB_API',     'https://api.github.com/repos/'.CC_GITHUB_REPO.'/releases/latest');
 define('CC_GITHUB_ZIP',     'https://github.com/'.CC_GITHUB_REPO.'/archive/refs/heads/main.zip');
 
-$currentVersion  = CC_VERSION ?? '1.0.0';
+// Source de vérité = le TAG GitHub sauvegardé en BDD après chaque update
+// CC_VERSION dans config.php n'est utilisé QUE comme fallback si jamais rien en BDD
+$currentVersion = Config::get('installed_version', CC_VERSION ?? '1.0.0');
 $results         = [];
 $migrateRun      = false;
 $updateRun       = false;
@@ -15,20 +17,86 @@ $latestVersion   = null;
 $latestZipUrl    = null;
 $updateAvailable = false;
 
+// ── HTTP helper : cURL avec fallback file_get_contents ────────
+function ccHttpGet(string $url, int $timeout=10): array {
+    // Essai 1 : cURL (plus fiable sur hébergeurs)
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => $timeout,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS      => 5,
+            CURLOPT_USERAGENT      => 'ClubCMS-Updater/1.0',
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_HTTPHEADER     => ['Accept: application/vnd.github+json'],
+        ]);
+        $body  = curl_exec($ch);
+        $code  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err   = curl_error($ch);
+        curl_close($ch);
+        if ($body !== false && $code >= 200 && $code < 400) return ['ok'=>true,'body'=>$body];
+        if ($err) return ['ok'=>false,'body'=>'','error'=>"cURL : $err"];
+    }
+    // Essai 2 : file_get_contents
+    if (ini_get('allow_url_fopen')) {
+        $ctx  = stream_context_create(['http'=>[
+            'timeout'    => $timeout,
+            'user_agent' => 'ClubCMS-Updater/1.0',
+            'ignore_errors' => true,
+        ], 'ssl'=>['verify_peer'=>true]]);
+        $body = @file_get_contents($url, false, $ctx);
+        if ($body !== false) return ['ok'=>true,'body'=>$body];
+    }
+    return ['ok'=>false,'body'=>'','error'=>'Ni cURL ni allow_url_fopen disponibles. Contactez votre hébergeur.'];
+}
+
+// ── Télécharger un fichier binaire (ZIP) ──────────────────────
+function ccDownloadZip(string $url, string $dest, int $timeout=60): array {
+    if (function_exists('curl_init')) {
+        $fp = fopen($dest, 'wb');
+        if (!$fp) return ['ok'=>false,'error'=>"Impossible de créer le fichier temporaire $dest"];
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_FILE           => $fp,
+            CURLOPT_TIMEOUT        => $timeout,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS      => 5,
+            CURLOPT_USERAGENT      => 'ClubCMS-Updater/1.0',
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        $ok  = curl_exec($ch);
+        $err = curl_error($ch);
+        $code= curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        fclose($fp);
+        if (!$ok || $code < 200 || $code >= 400) {
+            @unlink($dest);
+            return ['ok'=>false,'error'=>"Téléchargement échoué (HTTP $code) : $err"];
+        }
+        return ['ok'=>true];
+    }
+    if (ini_get('allow_url_fopen')) {
+        $ctx  = stream_context_create(['http'=>['timeout'=>$timeout,'user_agent'=>'ClubCMS-Updater/1.0'],'ssl'=>['verify_peer'=>true]]);
+        $data = @file_get_contents($url, false, $ctx);
+        if ($data === false) return ['ok'=>false,'error'=>'file_get_contents a échoué.'];
+        file_put_contents($dest, $data);
+        return ['ok'=>true];
+    }
+    return ['ok'=>false,'error'=>'Aucune méthode HTTP disponible (cURL et allow_url_fopen désactivés).'];
+}
+
 // ── Vérifier la version sur GitHub ────────────────────────────
 function checkGithubVersion(): array {
-    $ctx = stream_context_create(['http'=>[
-        'timeout'         => 5,
-        'user_agent'      => 'ClubCMS-Updater/1.0',
-        'ignore_errors'   => true,
-    ]]);
-    $json = @file_get_contents(CC_GITHUB_API, false, $ctx);
-    if (!$json) return ['version'=>null,'zip'=>null,'error'=>'Impossible de joindre GitHub.'];
-    $data = json_decode($json, true);
+    $r = ccHttpGet(CC_GITHUB_API, 5);
+    if (!$r['ok']) return ['version'=>null,'zip'=>null,'error'=>$r['error']??'GitHub injoignable'];
+    $data = json_decode($r['body'], true);
+    if (!$data) return ['version'=>null,'zip'=>null,'error'=>'Réponse GitHub invalide'];
     if (isset($data['message'])) return ['version'=>null,'zip'=>null,'error'=>$data['message']];
     $tag = ltrim($data['tag_name'] ?? '', 'v');
     $zip = $data['zipball_url'] ?? CC_GITHUB_ZIP;
-    return ['version'=>$tag, 'zip'=>$zip, 'error'=>null];
+    return ['version'=>$tag,'zip'=>$zip,'error'=>null];
 }
 
 $ghCheck = checkGithubVersion();
@@ -86,83 +154,103 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && Auth::verifyCsrf() && isset($_POST['r
 
 // ── Handler : mise à jour automatique ─────────────────────────
 if ($_SERVER['REQUEST_METHOD']==='POST' && Auth::verifyCsrf() && isset($_POST['run_update'])) {
-    $updateRun = true;
-    $zipUrl    = $_POST['zip_url'] ?? CC_GITHUB_ZIP;
-    $tmpZip    = sys_get_temp_dir().'/clubcms_update.zip';
-    $tmpDir    = sys_get_temp_dir().'/clubcms_update_'.time();
-
-    // Fichiers/dossiers à NE JAMAIS écraser
-    $protected = ['config/config.php', 'uploads'];
+    $updateRun   = true;
+    $updateSteps = []; // log pas à pas
+    $updateError = '';
 
     try {
-        // 1. Télécharger le ZIP
-        $ctx = stream_context_create(['http'=>['timeout'=>30,'user_agent'=>'ClubCMS-Updater/1.0']]);
-        $zipData = @file_get_contents($zipUrl, false, $ctx);
-        if (!$zipData) throw new Exception("Impossible de télécharger la mise à jour depuis GitHub.");
+        // Vérif prérequis
+        if (!class_exists('ZipArchive')) throw new Exception("ZipArchive non disponible. Activez l'extension zip dans php.ini (extension=zip).");
 
-        file_put_contents($tmpZip, $zipData);
+        $zipUrl = $_POST['zip_url'] ?? CC_GITHUB_ZIP;
+        $tmpZip = sys_get_temp_dir().DIRECTORY_SEPARATOR.'clubcms_update_'.time().'.zip';
+        $tmpDir = sys_get_temp_dir().DIRECTORY_SEPARATOR.'clubcms_upd_'.time();
 
-        // 2. Extraire le ZIP
-        $zip = new ZipArchive();
-        if ($zip->open($tmpZip) !== true) throw new Exception("Impossible d'extraire le ZIP téléchargé.");
+        $updateSteps[] = ['ok'=>true, 'msg'=>"Dossier temp : ".sys_get_temp_dir()];
+        $updateSteps[] = ['ok'=>true, 'msg'=>"URL : $zipUrl"];
+
+        // Tester accès écriture dossier temp
+        if (!is_writable(sys_get_temp_dir())) throw new Exception("Dossier temporaire non accessible en écriture : ".sys_get_temp_dir());
+        $updateSteps[] = ['ok'=>true, 'msg'=>"Dossier temp accessible ✓"];
+
+        // Télécharger
+        $dlResult = ccDownloadZip($zipUrl, $tmpZip, 60);
+        if (!$dlResult['ok']) throw new Exception("Téléchargement échoué : ".($dlResult['error']??'erreur inconnue'));
+        $zipSize = file_exists($tmpZip) ? filesize($tmpZip) : 0;
+        if ($zipSize < 1000) throw new Exception("ZIP téléchargé trop petit ($zipSize octets) — URL invalide ou GitHub inaccessible.");
+        $updateSteps[] = ['ok'=>true, 'msg'=>"ZIP téléchargé : ".round($zipSize/1024)." Ko ✓"];
+
+        // Extraire
         @mkdir($tmpDir, 0755, true);
+        $zip = new ZipArchive();
+        $zr  = $zip->open($tmpZip);
+        if ($zr !== true) throw new Exception("Impossible d'ouvrir le ZIP (code $zr). Fichier corrompu ?");
         $zip->extractTo($tmpDir);
         $zip->close();
         @unlink($tmpZip);
+        $updateSteps[] = ['ok'=>true, 'msg'=>"ZIP extrait dans $tmpDir ✓"];
 
-        // 3. Trouver le dossier racine dans le ZIP (GitHub ajoute un sous-dossier)
-        $entries = scandir($tmpDir);
+        // Trouver dossier racine dans le ZIP (GitHub ajoute un sous-dossier)
         $rootDir = $tmpDir;
-        foreach ($entries as $e) {
-            if ($e!=='.' && $e!=='..' && is_dir($tmpDir.'/'.$e)) {
-                $rootDir = $tmpDir.'/'.$e; break;
+        foreach (scandir($tmpDir) as $e) {
+            if ($e!=='.' && $e!=='..' && is_dir($tmpDir.DIRECTORY_SEPARATOR.$e)) {
+                $rootDir = $tmpDir.DIRECTORY_SEPARATOR.$e; break;
             }
         }
+        $updateSteps[] = ['ok'=>true, 'msg'=>"Racine ZIP : $rootDir ✓"];
 
-        // 4. Copier récursivement en protégeant les fichiers sensibles
-        $updateLog = [];
-        function copyUpdate(string $src, string $dst, array $protected, string $base, array &$log): void {
+        // Fichiers/dossiers protégés (jamais écrasés)
+        $protected = ['config'.DIRECTORY_SEPARATOR.'config.php', 'uploads', 'install.php'];
+
+        // Copier récursivement
+        $copied = 0; $failed = 0;
+        function ccCopyDir(string $src, string $dst, array $prot, string $base, int &$ok, int &$ko): void {
+            if (!is_dir($dst)) @mkdir($dst, 0755, true);
             foreach (scandir($src) as $item) {
                 if ($item==='.' || $item==='..') continue;
-                $relPath = ltrim(str_replace($base, '', $dst).'/'.$item, '/');
-                // Vérifier protection
-                foreach ($protected as $p) {
-                    if (str_starts_with($relPath, $p)) return;
-                }
-                $srcPath = $src.'/'.$item;
-                $dstPath = $dst.'/'.$item;
-                if (is_dir($srcPath)) {
-                    @mkdir($dstPath, 0755, true);
-                    copyUpdate($srcPath, $dstPath, $protected, $base, $log);
-                } else {
-                    if (@copy($srcPath, $dstPath)) $log[] = '✓ '.$relPath;
-                    else $log[] = '✗ '.$relPath.' (échec copie)';
-                }
+                $rel = ltrim(str_replace($base, '', $dst).DIRECTORY_SEPARATOR.$item, DIRECTORY_SEPARATOR);
+                foreach ($prot as $p) { if (str_starts_with($rel, $p)) return; }
+                $s = $src.DIRECTORY_SEPARATOR.$item;
+                $d = $dst.DIRECTORY_SEPARATOR.$item;
+                if (is_dir($s))  ccCopyDir($s, $d, $prot, $base, $ok, $ko);
+                elseif (@copy($s, $d)) $ok++;
+                else $ko++;
             }
         }
-        copyUpdate($rootDir, CC_ROOT, $protected, CC_ROOT, $updateLog);
+        ccCopyDir($rootDir, CC_ROOT, $protected, CC_ROOT, $copied, $failed);
+        $updateSteps[] = ['ok'=>$failed===0, 'msg'=>"Fichiers copiés : $copied ✓".($failed?" · $failed échec(s)":'')];
 
-        // 5. Nettoyer le dossier temporaire
-        function rrmdir(string $dir): void {
+        // Nettoyage
+        function ccRmDir(string $dir): void {
             if (!is_dir($dir)) return;
             foreach (scandir($dir) as $f) {
-                if ($f==='.' || $f==='..') continue;
-                $p = $dir.'/'.$f;
-                is_dir($p) ? rrmdir($p) : @unlink($p);
+                if ($f==='.'||$f==='..') continue;
+                $p = $dir.DIRECTORY_SEPARATOR.$f;
+                is_dir($p) ? ccRmDir($p) : @unlink($p);
             }
             @rmdir($dir);
         }
-        rrmdir($tmpDir);
+        ccRmDir($tmpDir);
+        $updateSteps[] = ['ok'=>true, 'msg'=>"Fichiers temporaires nettoyés ✓"];
 
-        // 6. Migrations automatiques post-update
+        // Migrations BDD
+        $migOk = 0; $migFail = 0;
         foreach ($allMigrations as $sql) {
-            try { Database::run($sql); } catch(Exception $e) {}
+            try { Database::run($sql); $migOk++; }
+            catch(Exception $e) { $migFail++; }
         }
-        Config::set('installed_version', $latestVersion ?? $currentVersion, 'system');
-        $results = $updateLog;
+        // On sauvegarde le TAG GitHub comme version installée
+        // (pas CC_VERSION du ZIP qui peut être différent)
+        $newVersion = $latestVersion; // = tag GitHub ex: "1.4.1"
+        Config::set('installed_version', $newVersion, 'system');
+        $updateSteps[] = ['ok'=>true, 'msg'=>"Version installée enregistrée : v$newVersion ✓"];
+
+        $updateSteps[] = ['ok'=>true, 'msg'=>"Migrations BDD : $migOk appliquées".($migFail?" · $migFail ignorées":'')." ✓"];
+        $results = $updateSteps;
 
     } catch(Exception $e) {
         $updateError = $e->getMessage();
+        $results = $updateSteps; // afficher les étapes déjà complétées
     }
 }
 
@@ -202,26 +290,44 @@ ob_start();
 <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-radius:14px;padding:1.25rem 1.5rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
   <div>
     <div style="font-weight:800;font-size:1.05rem;margin-bottom:.25rem">🚀 Nouvelle version disponible : v<?=Helpers::e($latestVersion)?></div>
-    <div style="opacity:.85;font-size:.875rem">Vous utilisez v<?=CC_VERSION?> — La mise à jour est automatique, vos données sont protégées.</div>
+    <div style="opacity:.85;font-size:.875rem">Vous utilisez v<?=$currentVersion?> — La mise à jour est automatique, vos données sont protégées.</div>
   </div>
-  <form method="post">
+  <form method="post" id="update-form">
     <?=Auth::csrfField()?>
     <input type="hidden" name="zip_url" value="<?=Helpers::e($latestZipUrl ?? CC_GITHUB_ZIP)?>">
-    <button type="submit" name="run_update"
-      onclick="this.disabled=true;this.innerHTML='⏳ Téléchargement…';this.form.submit()"
+    <input type="hidden" name="run_update" value="1">
+    <button type="submit" id="update-btn"
       style="background:#fff;color:#6366f1;font-weight:700;border:none;border-radius:8px;padding:.6rem 1.25rem;cursor:pointer;font-size:.9rem">
       ⬇️ Mettre à jour maintenant
     </button>
   </form>
+  <script>
+  document.getElementById('update-form').addEventListener('submit',function(){
+    var btn=document.getElementById('update-btn');
+    btn.disabled=true;
+    btn.style.opacity='0.7';
+    btn.innerHTML='⏳ Téléchargement en cours…';
+  });
+  </script>
 </div>
 <?php elseif(!$ghCheck['error'] && !$updateAvailable): ?>
 <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:.875rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:.75rem">
   <span style="font-size:1.25rem">✅</span>
-  <div><strong>ClubCMS est à jour</strong> — vous utilisez la dernière version (v<?=CC_VERSION?>).</div>
+  <div><strong>ClubCMS est à jour</strong> — vous utilisez la dernière version (v<?=$currentVersion?>).</div>
 </div>
 <?php elseif($ghCheck['error']): ?>
 <div style="background:#fef3c7;border:1.5px solid #fde68a;border-radius:10px;padding:.875rem 1.25rem;margin-bottom:1.25rem">
-  ⚠️ Impossible de vérifier la version : <?=Helpers::e($ghCheck['error'])?> — vérifiez votre connexion internet.
+  <div style="font-weight:700;color:#92400e;margin-bottom:.35rem">⚠️ Impossible de vérifier la version sur GitHub</div>
+  <div style="font-size:.82rem;color:#78350f;margin-bottom:.5rem"><?=Helpers::e($ghCheck['error'])?></div>
+  <div style="font-size:.78rem;color:#92400e">
+    <?php if(!function_exists('curl_init')): ?>❌ cURL non disponible sur ce serveur.<?php else: ?>✅ cURL disponible<?php endif; ?> &nbsp;·&nbsp;
+    <?php if(!ini_get('allow_url_fopen')): ?>❌ allow_url_fopen désactivé.<?php else: ?>✅ allow_url_fopen activé<?php endif; ?>
+    <?php if(!function_exists('curl_init') && !ini_get('allow_url_fopen')): ?>
+    <br><strong style="color:#dc2626">Contactez votre hébergeur pour activer cURL ou allow_url_fopen.</strong>
+    <?php elseif(strpos(CC_GITHUB_API,'github.com')!==false): ?>
+    <br>Le serveur ne parvient pas à joindre GitHub — vérifiez le pare-feu ou réessayez dans quelques instants.
+    <?php endif; ?>
+  </div>
 </div>
 <?php endif; ?>
 
@@ -233,24 +339,29 @@ ob_start();
   </div>
   <div class="ac-body">
     <?php if($updateError): ?>
-    <div style="background:#fff5f5;border:1.5px solid #fecaca;border-radius:8px;padding:.875rem;color:#dc2626;margin-bottom:.75rem">
-      <?=Helpers::e($updateError)?>
+    <div style="background:#fff5f5;border:1.5px solid #fecaca;border-radius:8px;padding:.875rem;color:#dc2626;margin-bottom:.75rem;font-weight:600">
+      ❌ <?=Helpers::e($updateError)?>
     </div>
     <?php else: ?>
     <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:8px;padding:.875rem;color:#15803d;margin-bottom:.75rem;font-weight:600">
-      <?=count($results)?> fichiers mis à jour — migrations BDD appliquées automatiquement.
+      ✅ Mise à jour terminée avec succès — migrations BDD appliquées.
     </div>
     <?php endif; ?>
-    <div style="max-height:220px;overflow-y:auto;background:#0f172a;border-radius:8px;padding:.75rem">
-      <?php foreach($results as $line): ?>
-      <div style="font-family:monospace;font-size:.72rem;color:<?=str_starts_with((string)$line,'✓')?'#86efac':'#fca5a5'?>;margin-bottom:.15rem">
-        <?=Helpers::e((string)$line)?>
+    <?php if(!empty($results)): ?>
+    <div style="background:#0f172a;border-radius:8px;padding:.875rem;margin-bottom:.875rem">
+      <div style="font-size:.72rem;color:#64748b;margin-bottom:.5rem;font-family:monospace">Journal d'installation :</div>
+      <?php foreach($results as $step):
+        $stepOk  = is_array($step) ? ($step['ok']??true) : str_starts_with((string)$step,'✓');
+        $stepMsg = is_array($step) ? ($step['msg']??'') : (string)$step;
+      ?>
+      <div style="font-family:monospace;font-size:.78rem;color:<?=$stepOk?'#86efac':'#fca5a5'?>;margin-bottom:.3rem;display:flex;gap:.5rem">
+        <span><?=$stepOk?'✓':'✗'?></span>
+        <span><?=Helpers::e($stepMsg)?></span>
       </div>
       <?php endforeach; ?>
     </div>
-    <?php if(!$updateError): ?>
-    <a href="<?=u('/admin/update')?>" class="btn btn-primary" style="margin-top:1rem">← Retour</a>
     <?php endif; ?>
+    <a href="<?=u('/admin/update')?>" class="btn btn-primary">← Retour</a>
   </div>
 </div>
 <?php endif; ?>
@@ -263,7 +374,7 @@ ob_start();
     <div class="ac-body">
       <div style="display:flex;flex-direction:column;gap:.625rem">
         <?php foreach([
-          ['Version installée','v'.CC_VERSION],
+          ['Version installée','v'.$currentVersion],
           ['Dernière version GitHub', $latestVersion ? 'v'.$latestVersion : ($ghCheck['error'] ? '—' : 'Vérification…')],
           ['Tables BDD', count(array_filter($tableCheck)).'/'.count($expectedTables).' présentes'],
         ] as [$label,$val]): ?>
@@ -322,7 +433,8 @@ ob_start();
     <?php endif; ?>
     <form method="post">
       <?=Auth::csrfField()?>
-      <button type="submit" name="run_migrations" class="btn btn-primary">⚙️ Lancer les migrations</button>
+      <input type="hidden" name="run_migrations" value="1">
+      <button type="submit" class="btn btn-primary">⚙️ Lancer les migrations</button>
     </form>
   </div>
 </div>
