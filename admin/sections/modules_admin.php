@@ -152,19 +152,16 @@ if ($section === 'config') {
         <div class="fg"><label>Mot de passe SMTP</label><input type="password" name="mail_pass" placeholder="(inchangé si vide)"></div>
         <div class="fg"><label>Email expéditeur</label><input type="email" name="mail_from_email" value="<?=Helpers::e(Config::get('mail_from_email'))?>"></div>
         <div class="fg"><label>Nom expéditeur</label><input type="text" name="mail_from_name" value="<?=Helpers::e(Config::get('mail_from_name'))?>"></div>
-        <!-- Guide reCAPTCHA -->
+        <!-- Guide SMTP -->
         <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:1rem;margin-bottom:1.25rem">
-          <div style="font-weight:700;font-size:.9rem;color:#0369a1;margin-bottom:.5rem">🤖 Configurer Google reCAPTCHA v3</div>
-          <ol style="font-size:.82rem;color:#0c4a6e;line-height:1.8;margin:0;padding-left:1.25rem">
-            <li>Allez sur <a href="https://www.google.com/recaptcha/admin/create" target="_blank" style="color:#2563eb;font-weight:600">google.com/recaptcha/admin/create</a></li>
-            <li>Choisissez le type <strong>reCAPTCHA v3</strong></li>
-            <li>Ajoutez votre domaine (ex: <code style="background:#e0f2fe;padding:.1rem .3rem;border-radius:4px">monclub.fr</code> ou <code style="background:#e0f2fe;padding:.1rem .3rem;border-radius:4px">localhost</code> pour les tests)</li>
-            <li>Copiez la <strong>Clé du site</strong> dans le champ ci-dessous</li>
-            <li>Copiez la <strong>Clé secrète</strong> dans le champ ci-dessous</li>
-          </ol>
-          <div style="margin-top:.625rem;font-size:.78rem;color:#0369a1">
-            💡 Le captcha est invisible pour les utilisateurs — il tourne en arrière-plan et bloque les robots avec un score de confiance.
-          </div>
+          <div style="font-weight:700;font-size:.9rem;color:#0369a1;margin-bottom:.5rem">📧 Comment configurer l'envoi d'emails ?</div>
+          <ul style="font-size:.82rem;color:#0c4a6e;line-height:1.8;margin:0;padding-left:1.25rem">
+            <li><strong>Gmail :</strong> hôte <code>smtp.gmail.com</code>, port <code>587</code>, activez "Mots de passe d'application" dans votre compte Google</li>
+            <li><strong>OVH :</strong> hôte <code>ssl0.ovh.net</code>, port <code>465</code> (SSL) ou <code>587</code> (TLS)</li>
+            <li><strong>o2switch :</strong> hôte <code>mail.votredomaine.fr</code>, port <code>587</code></li>
+            <li><strong>Infomaniak :</strong> hôte <code>mail.infomaniak.com</code>, port <code>587</code></li>
+          </ul>
+          <div style="margin-top:.625rem;font-size:.78rem;color:#0369a1">💡 Si les emails n'arrivent pas, vérifiez les spams et que votre hébergeur autorise les connexions SMTP sortantes.</div>
         </div>
 
       </div>

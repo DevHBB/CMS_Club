@@ -257,7 +257,16 @@ ob_start();
         <td><span class="badge badge-<?=$u['status']==='active'?'success':($u['status']==='pending'?'warning':'error')?>"><?=$u['status']?></span></td>
         <td><span class="badge badge-<?=match($u['license_status']??'none'){'valid'=>'success','pending'=>'warning','expired','rejected'=>'error',default=>'muted'}?>"><?=match($u['license_status']??'none'){'valid'=>'✓','pending'=>'⏳','expired'=>'Exp.','rejected'=>'✗',default=>'—'}?></span></td>
         <td style="font-size:.78rem"><?=Helpers::dateFormat($u['created_at'])?></td>
-        <td><a href="<?=u('/admin/users/edit/'.$u['id'])?>" class="btn btn-ghost btn-sm">✏️ Modifier</a></td>
+        <td style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center">
+          <a href="<?=u('/admin/users/edit/'.$u['id'])?>" class="btn btn-ghost btn-sm">✏️ Modifier</a>
+          <?php if(Auth::isSuperAdmin() && $u['id']!==Auth::id() && $u['role']!=='superadmin'): ?>
+          <form method="post" onsubmit="return confirm('Supprimer cet utilisateur ? Irréversible.')" style="margin:0">
+            <?=Auth::csrfField()?>
+            <input type="hidden" name="user_id" value="<?=$u['id']?>">
+            <button type="submit" name="delete_user" class="btn btn-sm" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca">🗑 Supprimer</button>
+          </form>
+          <?php endif; ?>
+        </td>
       </tr>
       <?php endforeach; ?>
     </tbody>

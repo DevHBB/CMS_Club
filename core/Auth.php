@@ -288,16 +288,40 @@ class Auth {
     public static function verifyRecaptcha(string $token): array {
         if (empty($token)) return ['success' => false, 'score' => 0];
 
-        $secret = Config::get('recaptcha_secret', '');
-        $ch = curl_init('https://www.google.com/recaptcha/api/siteverify');
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => http_build_query(['secret' => $secret, 'response' => $token]),
-            CURLOPT_TIMEOUT        => 5,
-        ]);
-        $response = curl_exec($ch);
-        curl_close($ch);
+        $secret  = Config::get('recaptcha_secret', '');
+        $payload = http_build_query(['secret' => $secret, 'response' => $token]);
+        $response = false;
+
+        // Méthode 1 : cURL (préféré)
+        if (function_exists('curl_init')) {
+            $ch = curl_init('https://www.google.com/recaptcha/api/siteverify');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => $payload,
+                CURLOPT_TIMEOUT        => 5,
+                CURLOPT_SSL_VERIFYPEER => true,
+            ]);
+            $response = curl_exec($ch);
+            curl_close($ch);
+        }
+
+        // Méthode 2 : file_get_contents (fallback si cURL absent)
+        if ($response === false && ini_get('allow_url_fopen')) {
+            $ctx = stream_context_create(['http' => [
+                'method'  => 'POST',
+                'header'  => 'Content-Type: application/x-www-form-urlencoded',
+                'content' => $payload,
+                'timeout' => 5,
+            ]]);
+            $response = @file_get_contents(
+                'https://www.google.com/recaptcha/api/siteverify',
+                false, $ctx
+            );
+        }
+
+        // Si aucune méthode disponible : laisser passer (fail open)
+        if ($response === false) return ['success' => true, 'score' => 1.0];
 
         return json_decode($response, true) ?? ['success' => false, 'score' => 0];
     }
