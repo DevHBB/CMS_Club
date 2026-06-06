@@ -490,5 +490,33 @@ if (document.cookie.indexOf('googtrans') !== -1) {
 }
 </script>
 <?php endif; ?>
+<?php if(Config::get('cookie_banner_enabled', '1')): ?>
+<!-- ── Bandeau cookies ── -->
+<div id="cookie-banner" style="display:none;position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);z-index:9989;width:min(520px,calc(100vw - 2rem));background:#1e293b;color:#e2e8f0;border-radius:14px;padding:1rem 1.25rem;box-shadow:0 8px 32px rgba(0,0,0,.25);display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+  <span style="font-size:1.3rem;flex-shrink:0">🍪</span>
+  <p style="flex:1;font-size:.82rem;line-height:1.5;margin:0;color:#cbd5e1">
+    <?=Helpers::e(Config::get('cookie_text', 'Ce site utilise des cookies pour améliorer votre expérience. En continuant à naviguer, vous acceptez leur utilisation.'))?>
+    <?php if(Config::get('cookie_link_url')): ?>
+    <a href="<?=u(Config::get('cookie_link_url'))?>" style="color:#818cf8;white-space:nowrap"> <?=Helpers::e(Config::get('cookie_link_label','En savoir plus'))?></a>
+    <?php endif; ?>
+  </p>
+  <button onclick="cookieAccept()" style="background:var(--color-primary);color:#fff;border:none;border-radius:8px;padding:.5rem 1.1rem;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
+    J'accepte
+  </button>
+</div>
+<script>
+(function(){
+  if(!localStorage.getItem('cc_cookie_ok')){
+    var b=document.getElementById('cookie-banner');
+    if(b) setTimeout(function(){b.style.display='flex';},600);
+  }
+})();
+function cookieAccept(){
+  localStorage.setItem('cc_cookie_ok','1');
+  var b=document.getElementById('cookie-banner');
+  if(b){b.style.opacity='0';b.style.transition='opacity .3s';setTimeout(function(){b.style.display='none';},300);}
+}
+</script>
+<?php endif; ?>
 </body>
 </html>

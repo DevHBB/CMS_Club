@@ -84,7 +84,11 @@ if ($section === 'config') {
         $group = Helpers::sanitize($_POST['group'] ?? 'general');
         $skip  = ['csrf_token','save_config','group'];
         // Checkboxes qui doivent pouvoir être décochées (valeur '0' si absentes du POST)
-        $checkboxes = ['maintenance_mode','translation_enabled'];
+        $checkboxes = ['maintenance_mode','translation_enabled','cookie_banner_enabled'];
+        // Champs texte cookies
+        foreach(['cookie_text','cookie_link_label','cookie_link_url'] as $ck) {
+            if(isset($_POST[$ck])) Config::set($ck, Helpers::sanitize($_POST[$ck]), $group);
+        }
         foreach ($checkboxes as $cb) {
             Config::set($cb, isset($_POST[$cb]) ? '1' : '0', $group);
         }
@@ -129,6 +133,29 @@ if ($section === 'config') {
         <small style="color:#64748b;font-size:.78rem">Laissez vide pour le texte automatique. Exemples : "© 2025 MonClub — Site propulsé par Valentin" ou "Tous droits réservés — MonClub"</small>
       </div>
       <div class="fg"><label style="display:flex;align-items:center;gap:.5rem;text-transform:none"><input type="checkbox" name="translation_enabled" value="1" <?=Config::get('translation_enabled')?'checked':''?>> Activer le bouton de traduction sur le site (Google Translate, gratuit)</label></div>
+      <!-- Cookies -->
+      <div style="border-top:1px solid #f1f5f9;margin:.75rem 0;padding-top:.75rem">
+        <div style="font-weight:600;font-size:.82rem;color:#475569;margin-bottom:.625rem">🍪 Bandeau cookies</div>
+        <div class="fg" style="margin-bottom:.5rem">
+          <label style="display:flex;align-items:center;gap:.5rem;text-transform:none">
+            <input type="checkbox" name="cookie_banner_enabled" value="1" <?=Config::get('cookie_banner_enabled','1')?'checked':''?>> Afficher le bandeau de consentement aux cookies
+          </label>
+        </div>
+        <div class="fg" style="margin-bottom:.5rem">
+          <label>Texte du bandeau</label>
+          <textarea name="cookie_text" class="input-std" rows="2" placeholder="Ce site utilise des cookies..."><?=Helpers::e(Config::get('cookie_text','Ce site utilise des cookies pour améliorer votre expérience. En continuant à naviguer, vous acceptez leur utilisation.'))?></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+          <div class="fg">
+            <label>Lien "En savoir plus" — Label</label>
+            <input type="text" name="cookie_link_label" class="input-std" value="<?=Helpers::e(Config::get('cookie_link_label','En savoir plus'))?>" placeholder="En savoir plus">
+          </div>
+          <div class="fg">
+            <label>Lien "En savoir plus" — URL</label>
+            <input type="text" name="cookie_link_label" class="input-std" value="<?=Helpers::e(Config::get('cookie_link_url',''))?>" name="cookie_link_url" placeholder="/confidentialite">
+          </div>
+        </div>
+      </div>
       <div style="display:flex;justify-content:flex-end"><button type="submit" name="save_config" class="btn btn-primary">💾 Sauvegarder</button></div>
     </div></form>
 
