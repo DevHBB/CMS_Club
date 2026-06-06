@@ -6,6 +6,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !Auth::verifyCsrf()) {
     adminFlash('error','CSRF'); Helpers::redirect(u('/admin/pages'));
 }
 
+// ── Migration colonnes manquantes ────────────────────────────
+try { Database::run("ALTER TABLE cc_articles ADD COLUMN IF NOT EXISTS access_mode VARCHAR(20) DEFAULT 'public'"); } catch(Exception $e) {}
+try { Database::run("ALTER TABLE cc_articles ADD COLUMN IF NOT EXISTS access_message TEXT DEFAULT NULL"); } catch(Exception $e) {}
+
 // Sauvegarde page d'accueil
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_homepage'])) {
     $fields = ['hero_title','hero_subtitle','hero_btn1_label','hero_btn1_url','hero_btn2_label','hero_btn2_url'];

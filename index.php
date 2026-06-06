@@ -94,6 +94,8 @@ switch ($module) {
     case 'shop':               moduleEnabled('shop');    include CC_ROOT.'/modules/shop/controller.php'; break;
     case 'galerie':
     case 'gallery':            moduleEnabled('gallery'); include CC_ROOT.'/modules/gallery/controller.php'; break;
+    case 'videos':
+    case 'video':              include CC_ROOT.'/modules/videos/controller.php'; break;
     case 'planning':
     case 'agenda':             moduleEnabled('planning');include CC_ROOT.'/modules/planning/controller.php'; break;
     case 'benevole':           include CC_ROOT.'/modules/benevole/controller.php'; break;

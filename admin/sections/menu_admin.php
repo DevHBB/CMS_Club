@@ -46,6 +46,7 @@ if (empty($menuItems)) {
         'forum'    => '/forum',
         'shop'     => '/boutique',
         'gallery'  => '/galerie',
+        'videos'   => '/videos',
         'planning' => '/planning',
         'members'  => '/annuaire',
     ];
@@ -53,6 +54,7 @@ if (empty($menuItems)) {
         'forum'    => 'Forum',
         'shop'     => 'Boutique',
         'gallery'  => 'Galerie',
+        'videos'   => 'Vidéos',
         'planning' => 'Planning',
         'members'  => 'Annuaire',
     ];
@@ -81,6 +83,7 @@ $suggestions = [
     ['💬', 'Forum',       '/forum'],
     ['🛒', 'Boutique',    '/boutique'],
     ['📸', 'Galerie',     '/galerie'],
+    ['🎬', 'Vidéos',      '/videos'],
     ['📅', 'Planning',    '/planning'],
     ['👤', 'Mon compte',  '/membre'],
     ['📝', 'Inscription', '/register'],

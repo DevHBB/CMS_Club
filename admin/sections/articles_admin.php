@@ -6,6 +6,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !Auth::verifyCsrf()) {
     adminFlash('error','CSRF'); Helpers::redirect(u('/admin/articles'));
 }
 
+// ── Migration colonnes manquantes ────────────────────────────
+try { Database::run("ALTER TABLE cc_articles ADD COLUMN IF NOT EXISTS access_mode VARCHAR(20) DEFAULT 'public'"); } catch(Exception $e) {}
+try { Database::run("ALTER TABLE cc_articles ADD COLUMN IF NOT EXISTS access_message TEXT DEFAULT NULL"); } catch(Exception $e) {}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_article'])) {
     $id   = (int)($_POST['article_id'] ?? 0);
     $data = [
