@@ -37,6 +37,8 @@
 
 **Prérequis :** PHP 8.1+, MySQL 5.7+, extensions : `pdo_mysql` `gd` `mbstring` `curl` `zip`
 
+> ⚠️ **Téléchargez la dernière [Release](https://github.com/DevHBB/CMS_Club/releases)** (fichier ZIP avec un tag `v1.x.x`), pas le code source brut — le bouton "Download ZIP" de GitHub donne le code non packagé qui peut être incomplet.
+
 1. Déposez les fichiers à la racine de votre hébergement
 2. Ouvrez `votresite.fr/install.php`
 3. Suivez les 4 étapes (vérification → BDD → club → admin)
