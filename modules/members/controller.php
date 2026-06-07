@@ -4,6 +4,7 @@
  * Routes : /membre, /membre/profil, /membre/licence, /membre/carte, /membre/commandes
  */
 
+ob_start(); // Nécessaire pour header() dans export RGPD
 Auth::require('member');
 $user = Auth::user();
 if (!$user) {
@@ -25,6 +26,19 @@ if (isset($_GET['export_rgpd'])) {
     header('Content-Disposition: attachment; filename="mes-donnees-'.date('Y-m-d').'.json"');
     echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+// ── Annuler demande de suppression ───────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_delete']) && Auth::verifyCsrf()) {
+    try { 
+        Database::run("DELETE FROM cc_config WHERE key_name=? AND group_name='delete_requests'", 
+            ['delete_request_'.Auth::id()]);
+    } catch(Exception $e) {
+        // Fallback si DELETE ne fonctionne pas
+        Config::set('delete_request_'.Auth::id(), '', 'delete_requests');
+    }
+    $_SESSION['flash'] = ['type'=>'success','msg'=>'Votre demande de suppression a été annulée.'];
+    Helpers::redirect(u('/membre/confidentialite'));
 }
 
 // ── Demande suppression compte ────────────────────────────────
@@ -120,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'profil') {
     );
 
     $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Profil mis à jour avec succès.'];
-    Helpers::redirect('/membre/profil');
+    Helpers::redirect(u('/membre/profil'));
 }
 
 // Upload licence
@@ -153,7 +167,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'licence') {
     );
 
     $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Licence soumise. En attente de validation par le staff.'];
-    Helpers::redirect('/membre/licence');
+    Helpers::redirect(u('/membre/licence'));
 }
 
 // Raffraîchit les données utilisateur
@@ -578,6 +592,56 @@ ob_start();
         </div>
       <?php endif; ?>
 
+    <?php elseif ($action === 'confidentialite'): ?>
+<div class="member-section">
+  <h2 style="font-size:1.15rem;font-weight:700;margin-bottom:1.25rem">🔒 Mes données personnelles (RGPD)</h2>
+
+  <!-- Export -->
+  <div style="border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:1.25rem">
+    <div style="background:#f0fdf4;padding:.875rem 1.25rem;border-bottom:1px solid #e2e8f0">
+      <div style="font-weight:700;color:#16a34a;font-size:.9rem">📦 Exporter mes données</div>
+    </div>
+    <div style="padding:1rem">
+      <p style="font-size:.875rem;color:#64748b;margin-bottom:.875rem">Conformément au RGPD, vous pouvez télécharger toutes vos données (compte, commandes, réservations, forum) au format JSON.</p>
+      <a href="<?=u('/membre/confidentialite')?>&amp;export_rgpd=1" class="btn btn-primary">⬇️ Télécharger mes données</a>
+    </div>
+  </div>
+
+  <!-- Suppression -->
+  <div style="border:1.5px solid #fecaca;border-radius:12px;overflow:hidden">
+    <div style="background:#fff5f5;padding:.875rem 1.25rem;border-bottom:1px solid #fecaca">
+      <div style="font-weight:700;color:#dc2626;font-size:.9rem">🗑 Demander la suppression de mon compte</div>
+    </div>
+    <div style="padding:1rem">
+      <p style="font-size:.875rem;color:#64748b;margin-bottom:.875rem">Droit à l'oubli (RGPD art. 17) — Un administrateur traitera votre demande sous 30 jours maximum.</p>
+      <?php if(Config::get('delete_request_'.Auth::id())): ?>
+      <div style="background:#fef3c7;border:1.5px solid #fde68a;border-radius:8px;padding:.75rem;font-size:.875rem;color:#92400e;margin-bottom:.75rem">
+        ⏳ Votre demande est en cours de traitement par l'administrateur (délai max 30 jours).
+      </div>
+      <form method="post">
+        <?=Auth::csrfField()?>
+        <button type="submit" name="cancel_delete" class="btn" style="background:#e2e8f0;color:#475569;font-size:.82rem"
+          onclick="return confirm('Annuler votre demande de suppression ?')">
+          ↩️ Annuler ma demande
+        </button>
+      </form>
+      <?php else: ?>
+      <form method="post">
+        <?=Auth::csrfField()?>
+        <div style="margin-bottom:.75rem">
+          <label style="font-size:.82rem;font-weight:600;color:#64748b;display:block;margin-bottom:.3rem">Motif (optionnel)</label>
+          <textarea name="delete_reason" rows="2" placeholder="Pourquoi souhaitez-vous supprimer votre compte ?" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:.5rem .75rem;font-family:inherit;font-size:.875rem;resize:vertical"></textarea>
+        </div>
+        <button type="submit" name="request_delete" class="btn" style="background:#dc2626;color:#fff"
+          onclick="return confirm('Confirmer la demande de suppression de votre compte ?')">
+          🗑 Demander la suppression
+        </button>
+      </form>
+      <?php endif; ?>
+    </div>
+  </div>
+</div>
+
     <?php endif; ?>
   </div><!-- .member-content -->
 </div><!-- .member-wrap -->
@@ -661,51 +725,7 @@ function showFileName(input) {
 @media(max-width:900px){.member-wrap{grid-template-columns:1fr}.member-sidebar{position:static}.dashboard-stats{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:480px){.dashboard-stats{grid-template-columns:1fr 1fr}}
 </style>
-<?php
-<?php <?php elseif ($action === 'confidentialite'): ?>
-<div class="member-section">
-  <h2 style="font-size:1.15rem;font-weight:700;margin-bottom:1.25rem">🔒 Mes données personnelles (RGPD)</h2>
 
-  <!-- Export -->
-  <div style="border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:1.25rem">
-    <div style="background:#f0fdf4;padding:.875rem 1.25rem;border-bottom:1px solid #e2e8f0">
-      <div style="font-weight:700;color:#16a34a;font-size:.9rem">📦 Exporter mes données</div>
-    </div>
-    <div style="padding:1rem">
-      <p style="font-size:.875rem;color:#64748b;margin-bottom:.875rem">Conformément au RGPD, vous pouvez télécharger toutes vos données (compte, commandes, réservations, forum) au format JSON.</p>
-      <a href="<?=u('/membre/confidentialite')?>?export_rgpd=1" class="btn btn-primary">⬇️ Télécharger mes données</a>
-    </div>
-  </div>
-
-  <!-- Suppression -->
-  <div style="border:1.5px solid #fecaca;border-radius:12px;overflow:hidden">
-    <div style="background:#fff5f5;padding:.875rem 1.25rem;border-bottom:1px solid #fecaca">
-      <div style="font-weight:700;color:#dc2626;font-size:.9rem">🗑 Demander la suppression de mon compte</div>
-    </div>
-    <div style="padding:1rem">
-      <p style="font-size:.875rem;color:#64748b;margin-bottom:.875rem">Droit à l'oubli (RGPD art. 17) — Un administrateur traitera votre demande sous 30 jours maximum.</p>
-      <?php if(Config::get('delete_request_'.Auth::id())): ?>
-      <div style="background:#fef3c7;border:1.5px solid #fde68a;border-radius:8px;padding:.75rem;font-size:.875rem;color:#92400e">
-        ⏳ Votre demande est en cours de traitement.
-      </div>
-      <?php else: ?>
-      <form method="post">
-        <?=Auth::csrfField()?>
-        <div style="margin-bottom:.75rem">
-          <label style="font-size:.82rem;font-weight:600;color:#64748b;display:block;margin-bottom:.3rem">Motif (optionnel)</label>
-          <textarea name="delete_reason" rows="2" placeholder="Pourquoi souhaitez-vous supprimer votre compte ?" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:.5rem .75rem;font-family:inherit;font-size:.875rem;resize:vertical"></textarea>
-        </div>
-        <button type="submit" name="request_delete" class="btn" style="background:#dc2626;color:#fff"
-          onclick="return confirm('Confirmer la demande de suppression de votre compte ?')">
-          🗑 Demander la suppression
-        </button>
-      </form>
-      <?php endif; ?>
-    </div>
-  </div>
-</div>
-
-endif; ?>
 <?php
 $content = ob_get_clean();
 include CC_ROOT . '/templates/layout.php';

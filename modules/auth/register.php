@@ -1,4 +1,5 @@
 <?php
+ob_start(); // Capturer tout output pour éviter les headers already sent
 if(!class_exists('CriteriaRenderer'))require_once CC_ROOT.'/core/CriteriaRenderer.php';
 
 /**
@@ -35,6 +36,7 @@ foreach ($regCritSettings as $cid => $s) {
 
 // Traitement du formulaire
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  try {
     if (!Auth::verifyCsrf()) {
         $error = 'Requête invalide. Réessayez.';
     } else {
@@ -120,10 +122,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $fields = $_POST;
         }
     }
+  } catch (\Throwable $e) {
+    $error = 'Une erreur est survenue. Veuillez réessayer.';
+    $fields = $_POST;
+    error_log('Register error: ' . $e->getMessage());
+  }
 }
 
 $pageTitle = 'Inscription — ' . $club;
-ob_start();
 ?>
 <div class="auth-container">
   <div class="auth-card">
@@ -144,7 +150,7 @@ ob_start();
       <?php if (!empty($successNotice)) echo $successNotice; ?>
     <?php else: ?>
 
-    <form method="post" id="register-form" novalidate>
+    <form method="post" id="register-form">
       <?= Auth::csrfField() ?>
       <?php if ($recaptchaSite): ?>
         <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
@@ -306,10 +312,16 @@ if (form) {
     document.querySelector('.btn-text').hidden = true;
     document.querySelector('.btn-loader').hidden = false;
 
-    const token = await new Promise(resolve =>
-      grecaptcha.ready(() => grecaptcha.execute('<?= Helpers::e($recaptchaSite) ?>', {action:'register'}).then(resolve))
-    );
-    document.getElementById('g-recaptcha-response').value = token;
+    try {
+      const token = await new Promise((resolve, reject) =>
+        grecaptcha.ready(() => grecaptcha.execute('<?= Helpers::e($recaptchaSite) ?>', {action:'register'}).then(resolve).catch(reject))
+      );
+      document.getElementById('g-recaptcha-response').value = token;
+    } catch(e) {
+      // Si reCAPTCHA échoue (ex: localhost), soumettre quand même
+      // Le serveur PHP validera côté serveur
+      console.warn('reCAPTCHA non disponible, soumission directe:', e);
+    }
     form.submit();
   });
 }

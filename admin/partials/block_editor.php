@@ -42,6 +42,7 @@ $blockCatalog = [
   'contact_info'   => ['label'=>'Infos de contact',        'icon'=>'TEL', 'color'=>'#dc2626','desc'=>'Téléphone, email, adresse, réseaux sociaux',          'cat'=>'Interactif'],
   'social_links'   => ['label'=>'Réseaux sociaux',         'icon'=>'SOC', 'color'=>'#1d4ed8','desc'=>'Boutons vers les réseaux du club',                    'cat'=>'Interactif'],
   'newsletter_form'=> ['label'=>'Formulaire newsletter',   'icon'=>'NWS', 'color'=>'#22c55e','desc'=>"Inscription à la newsletter du club",                'cat'=>'Interactif'],
+  'weather'        => ['label'=>'Widget météo',            'icon'=>'🌤',  'color'=>'#0369a1','desc'=>'Météo en temps réel pour une ville (wttr.in, RGPD friendly)', 'cat'=>'Widgets'],
   'html'           => ['label'=>'Code HTML libre',         'icon'=>'&lt;/&gt;','color'=>'#1e293b', 'desc'=>'Insérer du HTML personnalisé',                       'cat'=>'Avancé'],
   'embed'          => ['label'=>'Intégration externe',     'icon'=>'EMB', 'color'=>'#475569','desc'=>'Formulaire, widget, ou iframe externe',               'cat'=>'Avancé'],
 ];

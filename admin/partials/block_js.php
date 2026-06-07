@@ -442,7 +442,7 @@ var beTemplates = {
 var beMeta = <?php
   $meta = [];
   foreach ($blockCatalog as $type => $def) {
-    $meta[$type] = ['label'=>$def['label'],'icon'=>$def['icon'],'color'=>$def['color']];
+    $meta[$type] = ['label'=>$def['label'],'icon'=>$def['icon'],'color'=>$def['color'],'cat'=>$def['cat']??'Autres','desc'=>$def['desc']??''];
   }
   echo json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG);
 ?>;

@@ -2,6 +2,33 @@
 $pageTitle = 'Tableau de bord';
 ob_start();
 ?>
+<?php
+$deleteRequests = [];
+try {
+    $delRows = Database::all("SELECT `key`, `value` FROM cc_config WHERE `key` LIKE 'delete_request_%' AND `group`='delete_requests' AND `value` != ''");
+    foreach ($delRows as $row) {
+        $d = json_decode($row['value'], true);
+        if ($d && !empty($d['user_id'])) $deleteRequests[] = $d;
+    }
+} catch(Exception $e) {}
+?>
+<?php if(!empty($deleteRequests)): ?>
+<div style="background:#fff5f5;border:1.5px solid #fecaca;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:flex-start;gap:.875rem">
+  <span style="font-size:1.5rem;flex-shrink:0">🗑</span>
+  <div style="flex:1">
+    <div style="font-weight:700;color:#dc2626;font-size:.95rem;margin-bottom:.35rem">
+      <?=count($deleteRequests)?> demande<?=count($deleteRequests)>1?'s':''?> de suppression de compte en attente
+    </div>
+    <?php foreach($deleteRequests as $dr): ?>
+    <div style="font-size:.82rem;color:#9b1c1c;margin-bottom:.25rem">
+      👤 <strong><?=Helpers::e($dr['name']??'?')?></strong> (<?=Helpers::e($dr['email']??'')?>)
+      <?php if(!empty($dr['reason'])): ?> — <em><?=Helpers::e($dr['reason'])?></em><?php endif; ?>
+      &nbsp;<a href="<?=u('/admin/users')?>&search=<?=urlencode($dr['email']??'')?>" style="color:#dc2626;font-weight:600;text-decoration:none">→ Voir le membre</a>
+    </div>
+    <?php endforeach; ?>
+  </div>
+</div>
+<?php endif; ?>
 <div class="page-head"><h1>🏠 Tableau de bord</h1></div>
 
 <div class="stats-grid">

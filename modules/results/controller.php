@@ -73,14 +73,46 @@ $ph_s = Config::get('ph_results_subtitle','');
   </div>
   <div style="padding:1rem">
     <?php if($r['source_type']==='manual'): ?>
-    <?php $tbl=json_decode($r['content']??'{}',true); $hdrs=$tbl['headers']??[]; $rows=$tbl['rows']??[]; ?>
+    <?php
+    $tbl  = json_decode($r['content']??'{}', true);
+    $hdrs = $tbl['headers'] ?? [];
+    $rows = $tbl['rows']    ?? [];
+    // Compat ancienne structure
+    if (!empty($hdrs) && is_string($hdrs[0])) {
+        $hdrs = array_map(fn($h)=>['label'=>$h,'type'=>'text'], $hdrs);
+    }
+    // Réindexer les rows en tableau simple
+    $rows = array_values(array_map('array_values', $rows));
+    ?>
     <?php if(!empty($hdrs)||!empty($rows)): ?>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.875rem">
-      <thead><tr><?php foreach($hdrs as $h): ?><th style="padding:.5rem .75rem;background:#f8fafc;border:1px solid #e2e8f0;font-weight:700;text-align:left"><?=Helpers::e($h)?></th><?php endforeach; ?></tr></thead>
-      <tbody><?php foreach($rows as $i=>$row): ?>
+      <thead><tr>
+        <?php foreach($hdrs as $h): ?>
+        <th style="padding:.5rem .75rem;background:#f8fafc;border:1px solid #e2e8f0;font-weight:700;text-align:left"><?=Helpers::e($h['label']??$h)?></th>
+        <?php endforeach; ?>
+      </tr></thead>
+      <tbody>
+      <?php foreach($rows as $i=>$row): ?>
       <tr style="background:<?=$i%2===0?'#fff':'#f8fafc'?>">
-        <?php foreach($row as $cell): ?><td style="padding:.5rem .75rem;border:1px solid #e2e8f0"><?=Helpers::e($cell)?></td><?php endforeach; ?>
-      </tr><?php endforeach; ?></tbody>
+        <?php foreach($hdrs as $ci=>$hdr):
+          $cell    = $row[$ci] ?? '';
+          $colType = $hdr['type'] ?? 'text';
+        ?>
+        <td style="padding:.5rem .75rem;border:1px solid #e2e8f0;<?=$ci===0?'font-weight:700':''?>">
+          <?php if($colType==='photo' && $cell): ?>
+          <img src="<?=Helpers::e($cell)?>" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;vertical-align:middle">
+          <?php elseif($colType==='time'): ?>
+          <span style="font-family:monospace;font-size:.875rem"><?=Helpers::e($cell)?></span>
+          <?php elseif($colType==='number'): ?>
+          <span style="font-weight:600;color:var(--color-primary)"><?=Helpers::e($cell)?></span>
+          <?php else: ?>
+          <?=Helpers::e($cell)?>
+          <?php endif; ?>
+        </td>
+        <?php endforeach; ?>
+      </tr>
+      <?php endforeach; ?>
+      </tbody>
     </table></div>
     <?php endif; ?>
     <?php else: ?>

@@ -191,6 +191,7 @@ if ($subact === 'edit' && $itemId) {
               </select>
             </div>
             <div class="fg"><label>Numéro de licence</label><input type="text" name="license_number" value="<?=Helpers::e($u['license_number']??'')?>"></div>
+
             <div class="fg"><label>Date d'expiration</label><input type="date" name="license_expiry" value="<?=Helpers::e($u['license_expiry']??'')?>"></div>
           </div>
           <?php if($u['license_file']): ?>
@@ -260,6 +261,7 @@ ob_start();
 ?>
 <div class="page-head">
   <h1>👥 Membres (<?=$total?>)</h1>
+
   <form method="get" style="display:flex;gap:.5rem">
     <input type="search" name="q" value="<?=Helpers::e($search)?>" placeholder="Rechercher…" style="padding:.4rem .75rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.85rem;width:200px">
     <button type="submit" class="btn btn-ghost btn-sm">🔍</button>
@@ -306,6 +308,7 @@ ob_start();
   </div>
   <?php endif; ?>
 </div>
+
 <?php
 $content = ob_get_clean();
 include CC_ROOT . '/admin/layout.php';

@@ -40,6 +40,8 @@ $memberId = str_pad($user['id'], 6, '0', STR_PAD_LEFT);
 
 // URL de vérification
 $verifyUrl = CC_URL . '/verifier-carte?id=' . $user['id'] . '&hash=' . $user['member_card_hash'];
+// QR Code URL (défini globalement pour usage dans HTML et PDF)
+$qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=' . urlencode($verifyUrl);
 
 // Génération PDF (action)
 if ((defined('CARD_DOWNLOAD_MODE') && CARD_DOWNLOAD_MODE) || ($_GET['dl'] ?? '') === '1'):
@@ -140,8 +142,7 @@ if ((defined('CARD_DOWNLOAD_MODE') && CARD_DOWNLOAD_MODE) || ($_GET['dl'] ?? '')
     $pdf->SetXY(45, 47);
     $pdf->Cell(35, 5, 'REF: ' . chunk_split($shortHash, 4, '-'), 0, 0, 'R');
 
-    // QR Code via qrserver.com (gratuit, pas de lib nécessaire)
-    $qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=' . urlencode($verifyUrl);
+    // QR Code défini globalement, utilisé aussi en HTML
 
     // Vider tout buffer de sortie avant d'envoyer les headers PDF
     while (ob_get_level()) ob_end_clean();

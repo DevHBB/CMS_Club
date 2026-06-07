@@ -74,6 +74,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_card_pdf'])) {
     }
 }
 
+// ── Vérification QR code (AJAX) ──────────────────────────────
+if (isset($_GET['verify_qr'])) {
+    $uid  = (int)($_GET['id']   ?? 0);
+    $hash = trim($_GET['hash']  ?? '');
+    if ($uid && $hash) {
+        $member = Database::one("SELECT id,firstname,lastname,member_card_hash FROM cc_users WHERE id=?", [$uid]);
+        if ($member && $member['member_card_hash'] === $hash) {
+            header('Content-Type: application/json');
+            echo json_encode(['valid'=>true, 'name'=>$member['firstname'].' '.$member['lastname']]);
+        } else {
+            header('Content-Type: application/json');
+            echo json_encode(['valid'=>false]);
+        }
+    } else {
+        header('Content-Type: application/json');
+        echo json_encode(['valid'=>false]);
+    }
+    exit;
+}
+
 // ── Données ───────────────────────────────────────────────────
 $pending = Database::all("SELECT * FROM cc_users WHERE license_status='pending' ORDER BY updated_at DESC");
 $all     = Database::all("SELECT * FROM cc_users WHERE license_status NOT IN ('none') ORDER BY updated_at DESC LIMIT 50");
@@ -82,6 +102,190 @@ ob_start();
 ?>
 
 <div class="page-head"><h1>📄 Licences</h1></div>
+
+<!-- Nav onglets -->
+<?php $licTab = $_GET['tab'] ?? 'licences'; ?>
+<div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:1.25rem">
+  <a href="<?=u('/admin/licences')?>" class="btn <?=$licTab==='licences'?'btn-primary':'btn-ghost'?>">📄 Licences</a>
+  <a href="<?=u('/admin/licences?tab=scanner')?>" class="btn <?=$licTab==='scanner'?'btn-primary':'btn-ghost'?>">📷 Scanner QR code</a>
+</div>
+
+<?php if($licTab === 'scanner'): ?>
+<!-- ── Onglet Scanner QR code ── -->
+<div class="ac" style="max-width:520px">
+  <div class="ac-header"><h2>📷 Vérifier un membre par QR code</h2></div>
+  <div class="ac-body">
+    <p style="font-size:.875rem;color:#64748b;margin-bottom:1rem">
+      Scannez le QR code présent sur la carte membre d'un adhérent pour vérifier son identité et accéder à sa fiche.
+    </p>
+
+    <!-- Zone résultat (avant scan) -->
+    <div id="qr-member-result" style="display:none;border-radius:10px;padding:1rem;margin-bottom:1rem;font-size:.95rem;font-weight:600"></div>
+
+    <!-- Script chargé EN PREMIER avant les boutons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
+<script>
+var _qr = null;
+var _urlLicences = "<?=u('/admin/licences')?>";
+var _urlUsers    = "<?=u('/admin/users')?>";
+
+function qrStart() {
+  document.getElementById("qr-btn-start").style.display = "none";
+  document.getElementById("qr-btn-stop").style.display  = "inline-flex";
+  document.getElementById("qr-member-result").style.display = "none";
+
+  _qr = new Html5Qrcode("qr-reader-main");
+  Html5Qrcode.getCameras().then(function(cameras) {
+    if (!cameras || cameras.length === 0) {
+      qrShowResult(false, "Aucune camera detectee sur cet appareil.");
+      qrStop();
+      return;
+    }
+    var camId = cameras[cameras.length - 1].id;
+    _qr.start(
+      camId,
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      function(text) {
+        var m = text.match(/verifier-carte\?id=(\d+)&hash=([a-f0-9]+)/);
+        if (m) {
+          var userId = m[1];
+          var hash   = m[2];
+          fetch(_urlLicences + "&verify_qr=1&id=" + userId + "&hash=" + hash)
+            .then(function(r){ return r.json(); })
+            .then(function(data) {
+              if (data.valid) {
+                qrShowResult(true, "Membre reconnu : " + data.name);
+                setTimeout(function() {
+                  window.location.href = _urlUsers + "&edit=" + userId;
+                }, 1800);
+              } else {
+                qrShowResult(false, "QR code invalide - ce membre n'existe pas ou la carte est incorrecte.");
+              }
+            })
+            .catch(function() {
+              qrShowResult(false, "Erreur de verification. Reessayez.");
+            });
+          qrStop();
+        } else {
+          qrShowResult(false, "QR code non reconnu.");
+          qrStop();
+        }
+      },
+      function() {}
+    ).catch(function(e) {
+      qrShowResult(false, "Impossible d acces a la camera : " + e);
+      qrStop();
+    });
+  }).catch(function(e) {
+    qrShowResult(false, "Camera inaccessible : " + e);
+  });
+}
+
+function qrStop() {
+  if (_qr) { _qr.stop().catch(function(){}); _qr = null; }
+  document.getElementById("qr-btn-start").style.display = "inline-flex";
+  document.getElementById("qr-btn-stop").style.display  = "none";
+}
+
+function qrShowResult(ok, msg) {
+  var el = document.getElementById("qr-member-result");
+  el.style.display    = "block";
+  el.style.background = ok ? "#f0fdf4" : "#fff5f5";
+  el.style.border     = "1.5px solid " + (ok ? "#bbf7d0" : "#fecaca");
+  el.style.color      = ok ? "#166534" : "#991b1b";
+  el.innerHTML        = msg;
+}
+</script>
+
+    <!-- Boutons -->
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem">
+      <button type="button" id="qr-btn-start" onclick="qrStart()" class="btn btn-primary">📷 Démarrer la caméra</button>
+      <button type="button" id="qr-btn-stop"  onclick="qrStop()"  class="btn btn-ghost" style="display:none">⏹ Arrêter</button>
+    </div>
+
+    <!-- Lecteur vidéo -->
+    <div id="qr-reader-main" style="width:100%;max-width:400px;border-radius:10px;overflow:hidden;background:#000"></div>
+
+    <p style="font-size:.75rem;color:#94a3b8;margin-top:.75rem">
+      Pointez la caméra vers le QR code de la carte membre. La redirection est automatique.
+    </p>
+  </div>
+</div>
+<script>
+var _qr = null;
+
+function qrStart() {
+  document.getElementById('qr-btn-start').style.display = 'none';
+  document.getElementById('qr-btn-stop').style.display  = 'inline-flex';
+  document.getElementById('qr-member-result').style.display = 'none';
+
+  _qr = new Html5Qrcode("qr-reader-main");
+  Html5Qrcode.getCameras().then(function(cameras) {
+    if (!cameras || cameras.length === 0) {
+      qrShowResult(false, "❌ Aucune caméra détectée sur cet appareil.");
+      qrStop();
+      return;
+    }
+    // Préférer la caméra arrière (dernière de la liste sur mobile)
+    var camId = cameras[cameras.length - 1].id;
+    _qr.start(
+      camId,
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      function(text) {
+        // QR scanné — extraire l'ID et le hash
+        var m = text.match(/verifier-carte\?id=(\d+)&hash=([a-f0-9]+)/);
+        if (m) {
+          var userId = m[1];
+          var hash   = m[2];
+          // Vérifier via une requête AJAX
+          fetch('<?=u('/admin/licences')?>&verify_qr=1&id=' + userId + '&hash=' + hash)
+            .then(function(r){ return r.json(); })
+            .then(function(data) {
+              if (data.valid) {
+                qrShowResult(true, '✅ Membre reconnu : <strong>' + data.name + '</strong>');
+                setTimeout(function() {
+                  window.location.href = '<?=u('/admin/users')?>&edit=' + userId;
+                }, 1800);
+              } else {
+                qrShowResult(false, "❌ QR code invalide — ce membre n'existe pas ou la carte est incorrecte.");
+              }
+            })
+            .catch(function() {
+              qrShowResult(false, '❌ Erreur de vérification. Réessayez.');
+            });
+          qrStop();
+        } else {
+          qrShowResult(false, '❌ QR code non reconnu (format invalide).');
+          qrStop();
+        }
+      },
+      function() {} // erreur de frame, ignorée
+    ).catch(function(e) {
+      qrShowResult(false, '❌ Impossible d'accéder à la caméra : ' + e);
+      qrStop();
+    });
+  }).catch(function(e) {
+    qrShowResult(false, '❌ Caméra inaccessible : ' + e);
+  });
+}
+
+function qrStop() {
+  if (_qr) { _qr.stop().catch(function(){}); _qr = null; }
+  document.getElementById('qr-btn-start').style.display = 'inline-flex';
+  document.getElementById('qr-btn-stop').style.display  = 'none';
+}
+
+function qrShowResult(ok, msg) {
+  var el = document.getElementById('qr-member-result');
+  el.style.display    = 'block';
+  el.style.background = ok ? '#f0fdf4' : '#fff5f5';
+  el.style.border     = '1.5px solid ' + (ok ? '#bbf7d0' : '#fecaca');
+  el.style.color      = ok ? '#166534' : '#991b1b';
+  el.innerHTML        = msg;
+}
+</script>
+
+<?php else: ?>
 
 <?php if ($pending): ?>
 <div class="ac" style="margin-bottom:1.5rem">
@@ -155,6 +359,7 @@ ob_start();
   </div>
 </div>
 
+<?php endif; // fin onglet licences ?>
 <?php
 $content = ob_get_clean();
 include CC_ROOT . '/admin/layout.php';

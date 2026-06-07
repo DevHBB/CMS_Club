@@ -130,34 +130,71 @@ ob_start(); ?>
             <input type="url" name="iframe_url" class="bi" value="<?=Helpers::e($editRes['iframe_url']??'')?>" placeholder="https://docs.google.com/spreadsheets/d/...">
             <div style="font-size:.72rem;color:#94a3b8;margin-top:.25rem">Google Sheets : Fichier → Partager → Publier sur le web → copier l'URL</div>
           </div>
-          <!-- Tableau manuel -->
+          <!-- Tableau manuel avec colonnes configurables -->
           <div id="src-manual" style="display:<?=($editRes['source_type']??'manual')==='manual'?'block':'none'?>;margin-bottom:.75rem">
             <?php
             $tblData = json_decode($editRes['content']??'{}', true);
-            $headers = $tblData['headers'] ?? ['#','Nom','Points'];
-            $rows    = $tblData['rows']    ?? [['1','',''],[2,'',''],['3','','']];
+            $headers = $tblData['headers'] ?? [['label'=>'#','type'=>'text'],['label'=>'Nom','type'=>'text'],['label'=>'Points','type'=>'text']];
+            // Compatibilité ancienne structure (tableau simple de strings)
+            if (!empty($headers) && is_string($headers[0])) {
+                $headers = array_map(fn($h)=>['label'=>$h,'type'=>'text'], $headers);
+            }
+            $rows = $tblData['rows'] ?? [['','',''],['','',''],['','','']];
+            $colTypes = ['text'=>'Texte','number'=>'Nombre','time'=>'Temps (chrono)','photo'=>'Photo (URL)'];
             ?>
-            <label style="font-size:.78rem;font-weight:600;color:#64748b;display:block;margin-bottom:.5rem">Tableau de classement</label>
-            <table style="width:100%;border-collapse:collapse" id="result-table">
+            <!-- En-têtes configurables -->
+            <div style="margin-bottom:.75rem">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+                <label style="font-size:.78rem;font-weight:600;color:#64748b">Colonnes</label>
+                <button type="button" onclick="addCol()" class="btn btn-ghost btn-sm">+ Colonne</button>
+              </div>
+              <div id="cols-list" style="display:flex;gap:.5rem;flex-wrap:wrap">
+                <?php foreach($headers as $ci=>$hdr): ?>
+                <div class="col-item" style="display:flex;align-items:center;gap:.35rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:.35rem .5rem">
+                  <input type="text" name="headers[<?=$ci?>][label]" value="<?=Helpers::e($hdr['label']??'')?>"
+                    style="border:none;background:none;font-weight:600;font-size:.8rem;width:80px">
+                  <select name="headers[<?=$ci?>][type]" class="bi" style="font-size:.72rem;padding:.2rem .3rem">
+                    <?php foreach($colTypes as $v=>$l): ?>
+                    <option value="<?=$v?>" <?=($hdr['type']??'text')===$v?'selected':''?>><?=$l?></option>
+                    <?php endforeach; ?>
+                  </select>
+                  <button type="button" onclick="removeCol(this)" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:.8rem">✕</button>
+                </div>
+                <?php endforeach; ?>
+              </div>
+            </div>
+            <!-- Tableau -->
+            <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;min-width:400px" id="result-table">
               <thead><tr>
                 <?php foreach($headers as $i=>$h): ?>
-                <th style="padding:.35rem;background:#f8fafc;border:1px solid #e2e8f0">
-                  <input type="text" name="headers[]" value="<?=Helpers::e($h)?>" style="width:100%;border:none;background:none;font-weight:700;font-size:.8rem;text-align:center">
+                <th style="padding:.35rem .5rem;background:#f8fafc;border:1px solid #e2e8f0;font-size:.78rem;font-weight:700;white-space:nowrap">
+                  <?=Helpers::e($h['label']??'')?><?=$h['type']==='photo'?' 🖼':''?>
                 </th>
                 <?php endforeach; ?>
+                <th style="padding:.35rem;background:#f8fafc;border:1px solid #e2e8f0;width:30px"></th>
               </tr></thead>
               <tbody>
-                <?php foreach($rows as $row): ?>
+                <?php foreach($rows as $ri=>$row): ?>
                 <tr>
-                  <?php foreach($row as $i=>$cell): ?>
+                  <?php foreach($headers as $ci=>$h):
+                    $cell = $row[$ci] ?? '';
+                    $colType = $h['type']??'text';
+                  ?>
                   <td style="border:1px solid #e2e8f0;padding:.25rem">
-                    <input type="text" name="rows[<?=uniqid()?>][]" value="<?=Helpers::e($cell)?>" style="width:100%;border:none;font-size:.82rem;padding:.2rem .35rem">
+                    <input type="text" name="rows[<?=$ri?>][<?=$ci?>]" value="<?=Helpers::e($cell)?>"
+                      placeholder="<?=$colType==='photo'?'https://...':($colType==='time'?'00:00:00':'')?>"
+                      style="width:100%;border:none;font-size:.82rem;padding:.2rem .35rem;min-width:<?=$colType==='photo'?'160px':'60px'?>">
                   </td>
                   <?php endforeach; ?>
+                  <td style="border:1px solid #e2e8f0;text-align:center">
+                    <button type="button" onclick="this.closest('tr').remove()" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:.8rem">✕</button>
+                  </td>
                 </tr>
                 <?php endforeach; ?>
               </tbody>
             </table>
+            </div>
             <button type="button" onclick="addRow()" class="btn btn-ghost btn-sm" style="margin-top:.5rem">+ Ligne</button>
           </div>
           <div style="display:flex;gap:.75rem;align-items:center">
@@ -207,11 +244,56 @@ function showSource(v){
 }
 function addRow(){
   var tb=document.querySelector('#result-table tbody');
-  var cols=document.querySelectorAll('#result-table thead th').length;
+  var hdrs=document.querySelectorAll('#result-table thead th');
   var tr=document.createElement('tr');
-  var uid=Date.now();
-  for(var i=0;i<cols;i++) tr.innerHTML+='<td style="border:1px solid #e2e8f0;padding:.25rem"><input type="text" name="rows['+uid+'][]" style="width:100%;border:none;font-size:.82rem;padding:.2rem .35rem"></td>';
+  var ri=Date.now();
+  var colCount=hdrs.length-1; // -1 pour le th vide (bouton suppr)
+  for(var i=0;i<colCount;i++){
+    tr.innerHTML+='<td style="border:1px solid #e2e8f0;padding:.25rem"><input type="text" name="rows['+ri+']['+i+']" style="width:100%;border:none;font-size:.82rem;padding:.2rem .35rem"></td>';
+  }
+  tr.innerHTML+='<td style="border:1px solid #e2e8f0;text-align:center"><button type="button" onclick="this.closest(\'tr\').remove()" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:.8rem">✕</button></td>';
   tb.appendChild(tr);
+}
+function addCol(){
+  var list=document.getElementById('cols-list');
+  var ci=list.querySelectorAll('.col-item').length;
+  var types=['text','number','time','photo'];
+  var labels=['Texte','Nombre','Temps (chrono)','Photo (URL)'];
+  var opts=types.map((v,i)=>'<option value="'+v+'">'+labels[i]+'</option>').join('');
+  var d=document.createElement('div');
+  d.className='col-item';
+  d.style='display:flex;align-items:center;gap:.35rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:.35rem .5rem';
+  d.innerHTML='<input type="text" name="headers['+ci+'][label]" placeholder="Colonne" style="border:none;background:none;font-weight:600;font-size:.8rem;width:80px" oninput="syncColHeader(this,'+ci+')">'
+    +'<select name="headers['+ci+'][type]" class="bi" style="font-size:.72rem;padding:.2rem .3rem">'+opts+'</select>'
+    +'<button type="button" onclick="removeCol(this,'+ci+')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:.8rem">✕</button>';
+  list.appendChild(d);
+  // Ajouter la colonne dans le tableau immédiatement
+  var thead=document.querySelector('#result-table thead tr');
+  var lastTh=thead.lastElementChild; // le th vide (suppr)
+  var newTh=document.createElement('th');
+  newTh.style='padding:.35rem .5rem;background:#f8fafc;border:1px solid #e2e8f0;font-size:.78rem;font-weight:700';
+  newTh.id='th-col-'+ci;
+  newTh.textContent='Colonne';
+  thead.insertBefore(newTh,lastTh);
+  // Ajouter une cellule dans chaque ligne existante
+  document.querySelectorAll('#result-table tbody tr').forEach(function(tr){
+    var lastTd=tr.lastElementChild;
+    var ri=tr.querySelector('input[name]')?.name.match(/rows\[(\d+)\]/)?.[1]||Date.now();
+    var td=document.createElement('td');
+    td.style='border:1px solid #e2e8f0;padding:.25rem';
+    td.innerHTML='<input type="text" name="rows['+ri+']['+ci+']" style="width:100%;border:none;font-size:.82rem;padding:.2rem .35rem">';
+    tr.insertBefore(td,lastTd);
+  });
+}
+function syncColHeader(input, ci){
+  var th=document.getElementById('th-col-'+ci);
+  if(th) th.textContent=input.value||'Colonne';
+}
+function removeCol(btn, ci){
+  btn.closest('.col-item').remove();
+  // Retirer aussi la colonne du tableau
+  var th=document.getElementById('th-col-'+ci);
+  if(th) th.remove();
 }
 </script>
 
