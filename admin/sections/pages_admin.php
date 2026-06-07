@@ -276,7 +276,7 @@ ob_start();
 <!-- ════ LISTE PAGES ════ -->
 <div class="ac">
   <div class="ac-header"><h2>📄 Pages du site</h2></div>
-  <table class="at">
+  <div class="at-wrap"><table class="at">
     <thead><tr><th>Titre</th><th>URL</th><th>Publié</th><th>Créée le</th><th>Actions</th></tr></thead>
     <tbody>
       <tr style="background:#f0fdf4">
@@ -305,7 +305,7 @@ ob_start();
       <?php endforeach; ?>
       <?php if(empty($pages)): ?><tr><td colspan="5" style="text-align:center;padding:2rem;color:#94a3b8">Aucune page. <a href="<?=u('/admin/pages?tab=pages&edit=0')?>">Créer la première →</a></td></tr><?php endif; ?>
     </tbody>
-  </table>
+  </table></div>
 </div>
 <?php endif; ?>
 

@@ -83,7 +83,62 @@
 .role-badge{display:inline-block;font-size:.63rem;font-weight:700;text-transform:uppercase;padding:.1rem .38rem;border-radius:4px;letter-spacing:.05em}
 .role-member{background:#dbeafe;color:#1e40af}.role-benevole{background:#ede9fe;color:#7c3aed}.role-coach{background:#d1fae5;color:#065f46}
 .role-admin{background:#fef3c7;color:#92400e}.role-superadmin{background:#ede9fe;color:#4c1d95}
-@media(max-width:900px){.admin-sidebar{width:100%;position:relative;height:auto}.admin-main{margin-left:0}.admin-nav{flex-direction:row;flex-wrap:wrap;padding:.25rem}.admin-nav-item{padding:.3rem .5rem;font-size:.75rem}.admin-nav-group{display:none}.form-row{grid-template-columns:1fr}.span2{grid-column:span 1}}
+
+/* ── Hamburger mobile ── */
+.admin-hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:.5rem;background:none;border:none;margin-left:auto}
+.admin-hamburger span{display:block;width:22px;height:2px;background:#0f172a;border-radius:2px;transition:all .3s}
+.admin-sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99}
+
+@media(max-width:900px){
+  /* Layout de base */
+  body{flex-direction:column}
+  .admin-sidebar{
+    position:fixed;top:0;left:-100%;width:80%;max-width:280px;
+    height:100vh;z-index:100;transition:left .28s ease;
+    overflow-y:auto;box-shadow:4px 0 20px rgba(0,0,0,.25)
+  }
+  .admin-sidebar.open{left:0}
+  .admin-sidebar-overlay.open{display:block}
+  .admin-main{margin-left:0;width:100%}
+  .admin-topbar{padding:.65rem 1rem}
+  .admin-content{padding:1rem .875rem}
+  .admin-hamburger{display:flex}
+  .admin-nav{flex-direction:column;padding:.5rem}
+  .admin-nav-group{display:block;margin-top:.5rem}
+  .admin-nav-item{padding:.55rem .75rem;font-size:.875rem}
+
+  /* Grilles → colonne unique */
+  .form-row{grid-template-columns:1fr}
+  .span2{grid-column:span 1}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+
+  /* Tableaux → défilement horizontal */
+  .at-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px}
+  .at{min-width:520px}
+  .at th,.at td{padding:.45rem .65rem;font-size:.78rem}
+
+  /* Page-head empile sur mobile */
+  .page-head{flex-direction:column;align-items:flex-start;gap:.5rem}
+  .page-head h1{font-size:1.35rem}
+
+  /* Cards */
+  .ac-body{padding:.875rem}
+  .ac-header{padding:.625rem .875rem}
+
+  /* Boutons en pleine largeur sur petits écrans */
+  .btn-block-mobile{width:100%;justify-content:center}
+
+  /* QR scanner lisible sur mobile */
+  #qr-reader-main{max-width:100% !important}
+  #qr-scanner-wrap{padding:.5rem !important}
+}
+
+@media(max-width:480px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .admin-content{padding:.75rem .625rem}
+  .btn{font-size:.78rem;padding:.4rem .8rem}
+  .btn-sm{font-size:.72rem;padding:.25rem .5rem}
+}
 </style>
 </head>
 <body>
@@ -140,6 +195,9 @@
 
 <div class="admin-main">
   <div class="admin-topbar">
+    <button class="admin-hamburger" id="admin-hamburger" onclick="toggleAdminMenu()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
     <span class="admin-topbar-left"><?=Helpers::e($pageTitle??'Admin')?></span>
     <div class="admin-topbar-right">
       <?php $au=Auth::user(); ?>
@@ -157,4 +215,18 @@
 <script>window.csrfToken='<?=Auth::csrfToken()?>';
 async function apiPost(url,data){data.csrf_token=window.csrfToken;const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},body:JSON.stringify(data)});return r.json();}</script>
 <?=$extraJs??''?>
+<div class="admin-sidebar-overlay" id="admin-overlay" onclick="closeAdminMenu()"></div>
+<script>
+function toggleAdminMenu(){
+  document.querySelector('.admin-sidebar').classList.toggle('open');
+  document.getElementById('admin-overlay').classList.toggle('open');
+}
+function closeAdminMenu(){
+  document.querySelector('.admin-sidebar').classList.remove('open');
+  document.getElementById('admin-overlay').classList.remove('open');
+}
+window.addEventListener('resize',function(){
+  if(window.innerWidth>900) closeAdminMenu();
+});
+</script>
 </body></html>

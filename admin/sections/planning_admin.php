@@ -634,7 +634,7 @@ $bookings = Database::all("SELECT b.*,u.firstname,u.lastname,u.email FROM cc_pla
 </div>
 <div class="ac">
   <div class="ac-header"><h2>Réservations (<?=count($bookings)?>)</h2></div>
-  <table class="at">
+  <div class="at-wrap"><table class="at">
     <thead><tr><th>Personne</th><th>Email</th><th>Statut</th><th>Date</th><th>Action</th></tr></thead>
     <tbody>
       <?php foreach($bookings as $b): ?>
@@ -665,12 +665,12 @@ $bookings = Database::all("SELECT b.*,u.firstname,u.lastname,u.email FROM cc_pla
       <?php endforeach; ?>
       <?php if(empty($bookings)): ?><tr><td colspan="5" style="text-align:center;padding:2rem;color:#94a3b8">Aucune réservation</td></tr><?php endif; ?>
     </tbody>
-  </table>
+  </table></div>
 </div>
 
 <?php elseif($tab === '' || $tab === 'list'): ?>
 <div class="ac">
-  <table class="at">
+  <div class="at-wrap"><table class="at">
     <thead><tr><th>Titre</th><th>Type</th><th>Date</th><th>Coach</th><th>Places</th><th>Mode</th><th>Actions</th></tr></thead>
     <tbody>
       <?php
@@ -706,7 +706,7 @@ $bookings = Database::all("SELECT b.*,u.firstname,u.lastname,u.email FROM cc_pla
         <tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8">Aucun créneau. <a href="<?=u('/admin/planning?edit=0')?>">Créer le premier →</a></td></tr>
       <?php endif; ?>
     </tbody>
-  </table>
+  </table></div>
 </div>
 
 <?php elseif($tab === 'criteria'): ?>
@@ -1170,7 +1170,7 @@ $slotVolunteers = $filterSlot ? Database::all(
     <div class="ac"><div style="padding:2rem;text-align:center;color:#94a3b8">Aucune inscription.</div></div>
     <?php else: ?>
     <div class="ac">
-      <table class="at">
+      <div class="at-wrap"><table class="at">
         <thead>
           <tr>
             <th>#</th>
@@ -1244,7 +1244,7 @@ $slotVolunteers = $filterSlot ? Database::all(
         </tr>
         <?php endforeach; ?>
         </tbody>
-      </table>
+      </table></div>
     </div>
     <?php endif; ?>
     <?php endif; ?>
@@ -1317,7 +1317,7 @@ $editType   = $editTypeId ? Database::one("SELECT * FROM cc_planning_types WHERE
 </div>
 <div class="ac">
   <div class="ac-header"><h2>Types de créneaux (<?=count($slotTypes)?>)</h2></div>
-  <table class="at">
+  <div class="at-wrap"><table class="at">
     <thead><tr><th>Type</th><th>Slug</th><th>Système</th><th>Actions</th></tr></thead>
     <tbody>
     <?php foreach($slotTypes as $st): ?>
@@ -1338,7 +1338,7 @@ $editType   = $editTypeId ? Database::one("SELECT * FROM cc_planning_types WHERE
     </tr>
     <?php endforeach; ?>
     </tbody>
-  </table>
+  </table></div>
 </div>
 
     <!-- Liste bénévoles pour ce créneau -->
@@ -1348,7 +1348,7 @@ $editType   = $editTypeId ? Database::one("SELECT * FROM cc_planning_types WHERE
         <h2>🤝 Bénévoles présents (<?=count($slotVolunteers)?>)</h2>
         <span style="font-size:.78rem;color:#64748b">Bénévoles inscrits via l'espace bénévoles</span>
       </div>
-      <table class="at">
+      <div class="at-wrap"><table class="at">
         <thead><tr><th>Nom</th><th>Email</th><th>Inscrit le</th></tr></thead>
         <tbody>
         <?php foreach($slotVolunteers as $sv): ?>
@@ -1359,7 +1359,7 @@ $editType   = $editTypeId ? Database::one("SELECT * FROM cc_planning_types WHERE
         </tr>
         <?php endforeach; ?>
         </tbody>
-      </table>
+      </table></div>
     </div>
     <?php endif; ?>
 

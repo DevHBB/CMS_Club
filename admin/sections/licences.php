@@ -154,10 +154,7 @@ function qrStart() {
             .then(function(r){ return r.json(); })
             .then(function(data) {
               if (data.valid) {
-                qrShowResult(true, "Membre reconnu : " + data.name);
-                setTimeout(function() {
-                  window.location.href = _urlUsers + "&edit=" + userId;
-                }, 1800);
+                qrShowResult(true, "Membre reconnu : " + data.name, _urlUsers + "&edit=" + userId);
               } else {
                 qrShowResult(false, "QR code invalide - ce membre n'existe pas ou la carte est incorrecte.");
               }
@@ -187,13 +184,17 @@ function qrStop() {
   document.getElementById("qr-btn-stop").style.display  = "none";
 }
 
-function qrShowResult(ok, msg) {
+function qrShowResult(ok, msg, memberUrl) {
   var el = document.getElementById("qr-member-result");
   el.style.display    = "block";
   el.style.background = ok ? "#f0fdf4" : "#fff5f5";
   el.style.border     = "1.5px solid " + (ok ? "#bbf7d0" : "#fecaca");
   el.style.color      = ok ? "#166534" : "#991b1b";
-  el.innerHTML        = msg;
+  var html = "<div style='font-size:1rem;margin-bottom:.35rem'>" + (ok ? "✅ " : "❌ ") + msg + "</div>";
+  if (ok && memberUrl) {
+    html += "<a href='" + memberUrl + "' class='btn btn-primary btn-sm' style='margin-top:.35rem'>Voir la fiche du membre →</a>";
+  }
+  el.innerHTML = html;
 }
 </script>
 
@@ -290,7 +291,7 @@ function qrShowResult(ok, msg) {
 <?php if ($pending): ?>
 <div class="ac" style="margin-bottom:1.5rem">
   <div class="ac-header"><h2>⏳ En attente (<?=count($pending)?>)</h2></div>
-  <table class="at"><thead><tr><th>Membre</th><th>N° Licence</th><th>Expiration</th><th>Document</th><th>Actions</th></tr></thead><tbody>
+  <div class="at-wrap"><table class="at"><thead><tr><th>Membre</th><th>N° Licence</th><th>Expiration</th><th>Document</th><th>Actions</th></tr></thead><tbody>
     <?php foreach ($pending as $u): ?>
     <tr>
       <td><strong><?=Helpers::e($u['firstname'].' '.$u['lastname'])?></strong><br><small><?=Helpers::e($u['email'])?></small></td>
@@ -303,7 +304,7 @@ function qrShowResult(ok, msg) {
       </td>
     </tr>
     <?php endforeach; ?>
-  </tbody></table>
+  </tbody></table></div>
 </div>
 <?php else: ?>
 <div class="alert alert-success" style="margin-bottom:1rem">✅ Aucune licence en attente.</div>
@@ -311,7 +312,7 @@ function qrShowResult(ok, msg) {
 
 <div class="ac" style="margin-bottom:1.5rem">
   <div class="ac-header"><h2>Toutes les licences</h2></div>
-  <table class="at"><thead><tr><th>Membre</th><th>N°</th><th>Expiration</th><th>Statut</th></tr></thead><tbody>
+  <div class="at-wrap"><table class="at"><thead><tr><th>Membre</th><th>N°</th><th>Expiration</th><th>Statut</th></tr></thead><tbody>
     <?php foreach ($all as $u): ?>
     <tr>
       <td><?=Helpers::e($u['firstname'].' '.$u['lastname'])?></td>
@@ -321,7 +322,7 @@ function qrShowResult(ok, msg) {
     </tr>
     <?php endforeach; ?>
     <?php if (empty($all)): ?><tr><td colspan="4" style="text-align:center;padding:2rem;color:#94a3b8">Aucune licence soumise.</td></tr><?php endif; ?>
-  </tbody></table>
+  </tbody></table></div>
 </div>
 
 <!-- ── Vérification PDF carte membre ── -->

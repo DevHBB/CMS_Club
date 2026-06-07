@@ -168,7 +168,7 @@ $photos = Database::all("SELECT * FROM cc_gallery_photos WHERE folder_id=? ORDER
 <div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem;align-items:start">
   <div class="ac">
     <div class="ac-header"><h2>Dossiers & albums</h2></div>
-    <table class="at">
+    <div class="at-wrap"><table class="at">
       <thead><tr><th>Nom</th><th>Parent</th><th>Photos</th><th>🔒</th><th>Actions</th></tr></thead>
       <tbody>
         <?php foreach ($folders as $f): ?>
@@ -189,7 +189,7 @@ $photos = Database::all("SELECT * FROM cc_gallery_photos WHERE folder_id=? ORDER
         <?php endforeach; ?>
         <?php if (empty($folders)): ?><tr><td colspan="5" style="text-align:center;padding:2rem;color:#94a3b8">Aucun dossier</td></tr><?php endif; ?>
       </tbody>
-    </table>
+    </table></div>
   </div>
 
   <!-- Upload rapide -->

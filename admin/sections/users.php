@@ -268,7 +268,7 @@ ob_start();
   </form>
 </div>
 <div class="ac">
-  <table class="at">
+  <div class="at-wrap"><table class="at">
     <thead><tr><th>Membre</th><th>Email</th><th>Rôle</th><th>Statut</th><th>Licence</th><th>Inscrit le</th><th>Actions</th></tr></thead>
     <tbody>
       <?php foreach($users as $u): ?>
@@ -299,7 +299,7 @@ ob_start();
       </tr>
       <?php endforeach; ?>
     </tbody>
-  </table>
+  </table></div>
   <?php if($pager['pages']>1): ?>
   <div style="padding:1rem;display:flex;gap:.35rem;justify-content:center">
     <?php for($i=1;$i<=$pager['pages'];$i++): ?>

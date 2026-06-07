@@ -160,7 +160,7 @@ ob_start();
 </div>
 <?php else: ?>
 <div class="ac">
-  <table class="at">
+  <div class="at-wrap"><table class="at">
     <thead>
       <tr><th>Titre</th><th>URL (à copier pour les liens)</th><th>Publié</th><th>Auteur</th><th>Date</th><th>Actions</th></tr>
     </thead>
@@ -195,7 +195,7 @@ ob_start();
       </tr>
       <?php endforeach; ?>
     </tbody>
-  </table>
+  </table></div>
 </div>
 <?php endif; ?>
 <?php endif; ?>

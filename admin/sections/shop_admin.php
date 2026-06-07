@@ -134,7 +134,7 @@ ob_start();
     <div class="ac-header"><h2>Produits (<?=Database::scalar("SELECT COUNT(*) FROM cc_shop_products")?>)</h2>
       <a href="<?=u('/admin/shop?tab=products&edit=0')?>" class="btn btn-primary btn-sm">+ Nouveau</a>
     </div>
-    <table class="at">
+    <div class="at-wrap"><table class="at">
       <thead><tr><th>Produit</th><th>Prix</th><th>Stock</th><th>Livraison</th><th>Publié</th><th></th></tr></thead>
       <tbody>
         <?php foreach(Database::all("SELECT * FROM cc_shop_products ORDER BY id DESC LIMIT 50") as $p):
@@ -155,7 +155,7 @@ ob_start();
         </tr>
         <?php endforeach; ?>
       </tbody>
-    </table>
+    </table></div>
   </div>
 
   <!-- Formulaire produit -->
@@ -270,7 +270,7 @@ $editCat   = $editCatId ? Database::one("SELECT * FROM cc_shop_categories WHERE 
     Aucune catégorie. Créez-en une ci-dessus pour organiser vos produits.
   </div>
   <?php else: ?>
-  <table class="at">
+  <div class="at-wrap"><table class="at">
     <thead><tr><th>Catégorie</th><th>Description</th><th>Produits</th><th>Ordre</th><th>Actions</th></tr></thead>
     <tbody>
     <?php foreach($cats as $c): ?>
@@ -302,14 +302,14 @@ $editCat   = $editCatId ? Database::one("SELECT * FROM cc_shop_categories WHERE 
     </tr>
     <?php endforeach; ?>
     </tbody>
-  </table>
+  </table></div>
   <?php endif; ?>
 </div>
 
 <?php elseif($tab === 'orders'): ?>
 <div class="ac">
   <div class="ac-header"><h2>Commandes</h2></div>
-  <table class="at">
+  <div class="at-wrap"><table class="at">
     <thead><tr><th>#</th><th>Client</th><th>Total</th><th>Paiement</th><th>Statut</th><th>Date</th><th>Actions</th></tr></thead>
     <tbody>
       <?php foreach(Database::all("SELECT o.*, u.firstname, u.lastname FROM cc_shop_orders o LEFT JOIN cc_users u ON o.user_id=u.id ORDER BY o.created_at DESC LIMIT 100") as $o):
@@ -342,7 +342,7 @@ $editCat   = $editCatId ? Database::one("SELECT * FROM cc_shop_categories WHERE 
       </tr>
       <?php endforeach; ?>
     </tbody>
-  </table>
+  </table></div>
 </div>
 
 <?php elseif($tab === 'delivery'): ?>

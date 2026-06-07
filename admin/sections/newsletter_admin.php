@@ -97,7 +97,7 @@ ob_start();
 <?php elseif($tab === 'subscribers'): ?>
 <div class="ac">
   <div class="ac-header"><h2>Abonnés newsletter</h2></div>
-  <table class="at">
+  <div class="at-wrap"><table class="at">
     <thead><tr><th>Email</th><th>Prénom</th><th>Statut</th><th>Inscrit le</th><th>Actions</th></tr></thead>
     <tbody>
       <?php foreach($subscribers as $s): ?>
@@ -116,13 +116,13 @@ ob_start();
       <?php endforeach; ?>
       <?php if(empty($subscribers)): ?><tr><td colspan="5" style="text-align:center;padding:2rem;color:#64748b">Aucun abonné</td></tr><?php endif; ?>
     </tbody>
-  </table>
+  </table></div>
 </div>
 
 <?php elseif($tab === 'history'): ?>
 <div class="ac">
   <div class="ac-header"><h2>Campagnes envoyées</h2></div>
-  <table class="at">
+  <div class="at-wrap"><table class="at">
     <thead><tr><th>Objet</th><th>Envoyés</th><th>Date</th></tr></thead>
     <tbody>
       <?php foreach($campaigns as $c): ?>
@@ -134,7 +134,7 @@ ob_start();
       <?php endforeach; ?>
       <?php if(empty($campaigns)): ?><tr><td colspan="3" style="text-align:center;padding:2rem;color:#64748b">Aucune campagne envoyée</td></tr><?php endif; ?>
     </tbody>
-  </table>
+  </table></div>
 </div>
 <?php endif; ?>
 

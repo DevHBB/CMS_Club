@@ -45,7 +45,7 @@ ob_start();
   <!-- Liste catégories -->
   <div class="ac">
     <div class="ac-header"><h2>Catégories</h2></div>
-    <table class="at">
+    <div class="at-wrap"><table class="at">
       <thead><tr><th>Icône</th><th>Nom</th><th>Topics</th><th>Ordre</th><th>Actions</th></tr></thead>
       <tbody>
         <?php foreach($cats as $c): ?>
@@ -66,7 +66,7 @@ ob_start();
         <?php endforeach; ?>
         <?php if(empty($cats)): ?><tr><td colspan="5" style="text-align:center;color:#64748b;padding:2rem">Aucune catégorie</td></tr><?php endif; ?>
       </tbody>
-    </table>
+    </table></div>
   </div>
 
   <!-- Formulaire catégorie -->
@@ -98,7 +98,7 @@ ob_start();
 <!-- Topics récents -->
 <div class="ac" style="margin-top:1.5rem">
   <div class="ac-header"><h2>Topics récents</h2></div>
-  <table class="at">
+  <div class="at-wrap"><table class="at">
     <thead><tr><th>Titre</th><th>Catégorie</th><th>Auteur</th><th>Réponses</th><th>Épinglé</th><th>Verrouillé</th><th>Actions</th></tr></thead>
     <tbody>
       <?php foreach(Database::all("SELECT t.*, u.firstname, u.lastname, c.name AS cat_name, (SELECT COUNT(*) FROM cc_forum_posts p WHERE p.topic_id=t.id)-1 AS replies FROM cc_forum_topics t JOIN cc_users u ON t.user_id=u.id JOIN cc_forum_categories c ON t.category_id=c.id ORDER BY t.created_at DESC LIMIT 20") as $t): ?>
@@ -117,7 +117,7 @@ ob_start();
       </tr>
       <?php endforeach; ?>
     </tbody>
-  </table>
+  </table></div>
 </div>
 <?php
 $extraJs = "<script>

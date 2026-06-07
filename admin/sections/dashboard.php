@@ -51,7 +51,7 @@ try {
   <!-- Derniers inscrits -->
   <div class="ac">
     <div class="ac-header"><h2>Derniers inscrits</h2><a href="<?=u('/admin/users')?>" class="btn btn-ghost btn-sm">Voir tout</a></div>
-    <table class="at">
+    <div class="at-wrap"><table class="at">
       <thead><tr><th>Nom</th><th>Email</th><th>Statut</th><th>Le</th></tr></thead>
       <tbody>
         <?php foreach(Database::all("SELECT * FROM cc_users ORDER BY created_at DESC LIMIT 6") as $u): ?>
@@ -63,13 +63,13 @@ try {
         </tr>
         <?php endforeach; ?>
       </tbody>
-    </table>
+    </table></div>
   </div>
 
   <!-- Dernières commandes -->
   <div class="ac">
     <div class="ac-header"><h2>Dernières commandes</h2><a href="<?=u('/admin/shop')?>" class="btn btn-ghost btn-sm">Voir tout</a></div>
-    <table class="at">
+    <div class="at-wrap"><table class="at">
       <thead><tr><th>#</th><th>Total</th><th>Statut</th><th>Le</th></tr></thead>
       <tbody>
         <?php foreach(Database::all("SELECT * FROM cc_shop_orders ORDER BY created_at DESC LIMIT 6") as $o): ?>
@@ -81,7 +81,7 @@ try {
         </tr>
         <?php endforeach; ?>
       </tbody>
-    </table>
+    </table></div>
   </div>
 </div>
 

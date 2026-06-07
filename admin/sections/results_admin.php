@@ -212,7 +212,7 @@ ob_start(); ?>
     <?php if(!empty($results)): ?>
     <div class="ac">
       <div class="ac-header"><h2>📋 Résultats — <?=Helpers::e($curCat['name'])?></h2></div>
-      <table class="at">
+      <div class="at-wrap"><table class="at">
         <thead><tr><th>Titre</th><th>Date</th><th>Type</th><th>Statut</th><th></th></tr></thead>
         <tbody>
         <?php foreach($results as $r): ?>
@@ -231,7 +231,7 @@ ob_start(); ?>
         </tr>
         <?php endforeach; ?>
         </tbody>
-      </table>
+      </table></div>
     </div>
     <?php endif; ?>
     <?php endif; ?>

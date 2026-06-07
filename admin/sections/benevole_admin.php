@@ -374,7 +374,7 @@ $recentParts = Database::all(
   <div class="ac-header"><h2>Inscriptions récentes</h2></div>
   <?php if(empty($recentParts)): ?><div style="padding:1.5rem;text-align:center;color:#94a3b8">Aucune inscription</div>
   <?php else: ?>
-  <table class="at">
+  <div class="at-wrap"><table class="at">
     <thead><tr><th>Bénévole</th><th>Événement</th><th>Statut</th><th>Date</th></tr></thead>
     <tbody>
     <?php foreach($recentParts as $p): ?>
@@ -386,7 +386,7 @@ $recentParts = Database::all(
     </tr>
     <?php endforeach; ?>
     </tbody>
-  </table>
+  </table></div>
   <?php endif; ?>
 </div>
 
@@ -433,7 +433,7 @@ $recentParts = Database::all(
   </div>
   <div class="ac">
     <div class="ac-header"><h2>Événements (<?=count($events)?>)</h2></div>
-    <table class="at">
+    <div class="at-wrap"><table class="at">
       <thead><tr><th>Date</th><th>Titre</th><th>Bénévoles</th><th>Actions</th></tr></thead>
       <tbody>
       <?php foreach($events as $ev): $dt=new DateTime($ev['date_start']); $past=$dt<new DateTime(); ?>
@@ -457,7 +457,7 @@ $recentParts = Database::all(
       </tr>
       <?php endforeach; ?>
       </tbody>
-    </table>
+    </table></div>
   </div>
 </div>
 
@@ -515,7 +515,7 @@ $recentParts = Database::all(
   </div>
   <div class="ac">
     <div class="ac-header"><h2>Tâches (<?=count($tasks)?>)</h2></div>
-    <table class="at">
+    <div class="at-wrap"><table class="at">
       <thead><tr><th>Tâche</th><th>Assigné</th><th>Priorité</th><th>Statut</th><th>Actions</th></tr></thead>
       <tbody>
       <?php foreach($tasks as $tk): ?>
@@ -542,7 +542,7 @@ $recentParts = Database::all(
       </tr>
       <?php endforeach; ?>
       </tbody>
-    </table>
+    </table></div>
   </div>
 </div>
 
@@ -609,7 +609,7 @@ $recentParts = Database::all(
 <?php elseif($tab==='benevoles'): ?>
 <div class="ac">
   <div class="ac-header"><h2>👥 Bénévoles (<?=count($benevoles)?>)</h2></div>
-  <table class="at">
+  <div class="at-wrap"><table class="at">
     <thead><tr><th>Bénévole</th><th>Email</th><th>Compétences</th><th>Statut</th><th>Actions</th></tr></thead>
     <tbody>
     <?php foreach($benevoles as $b): ?>
@@ -640,7 +640,7 @@ $recentParts = Database::all(
     </tr>
     <?php endforeach; ?>
     </tbody>
-  </table>
+  </table></div>
 </div>
 
 <?php elseif($tab==='channels'): ?>
@@ -660,7 +660,7 @@ $recentParts = Database::all(
   <!-- Liste canaux -->
   <div class="ac">
     <div class="ac-header"><h2>Canaux (<?=count($chans)?>)</h2></div>
-    <table class="at">
+    <div class="at-wrap"><table class="at">
       <thead><tr><th>Canal</th><th>Statut</th><th>Actions</th></tr></thead>
       <tbody>
       <?php foreach($chans as $ch): ?>
@@ -681,7 +681,7 @@ $recentParts = Database::all(
       </tr>
       <?php endforeach; ?>
       </tbody>
-    </table>
+    </table></div>
   </div>
 </div>
 
@@ -713,7 +713,7 @@ $recentParts = Database::all(
     <p style="font-size:.82rem;color:#64748b;margin-bottom:1.25rem">Choisissez quels coachs peuvent accéder au panel bénévole et voir la liste d'attention.</p>
     <form method="post">
       <?=Auth::csrfField()?>
-      <table class="at">
+      <div class="at-wrap"><table class="at">
         <thead><tr><th>Coach</th><th>Accès panel</th><th>Voir liste attention</th></tr></thead>
         <tbody>
         <?php foreach($coaches as $c): ?>
@@ -739,7 +739,7 @@ $recentParts = Database::all(
         <?php endforeach; ?>
         <?php if(empty($coaches)): ?><tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:1.5rem">Aucun coach</td></tr><?php endif; ?>
         </tbody>
-      </table>
+      </table></div>
       <div style="margin-top:1rem"><button type="submit" name="save_coach_access" class="btn btn-primary">💾 Sauvegarder</button></div>
     </form>
   </div>

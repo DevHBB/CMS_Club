@@ -41,7 +41,7 @@ $memberId = str_pad($user['id'], 6, '0', STR_PAD_LEFT);
 // URL de vérification
 $verifyUrl = CC_URL . '/verifier-carte?id=' . $user['id'] . '&hash=' . $user['member_card_hash'];
 // QR Code URL (défini globalement pour usage dans HTML et PDF)
-$qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=' . urlencode($verifyUrl);
+$qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=4&data=' . urlencode($verifyUrl);
 
 // Génération PDF (action)
 if ((defined('CARD_DOWNLOAD_MODE') && CARD_DOWNLOAD_MODE) || ($_GET['dl'] ?? '') === '1'):
@@ -142,7 +142,53 @@ if ((defined('CARD_DOWNLOAD_MODE') && CARD_DOWNLOAD_MODE) || ($_GET['dl'] ?? '')
     $pdf->SetXY(45, 47);
     $pdf->Cell(35, 5, 'REF: ' . chunk_split($shortHash, 4, '-'), 0, 0, 'R');
 
-    // QR Code défini globalement, utilisé aussi en HTML
+    // ── QR Code dans le PDF ──────────────────────────────────────
+    // Télécharger le QR en mémoire et l'insérer dans le PDF
+    $qrTmp = null;
+    try {
+        // QR plus grand pour faciliter le scan (200x200px)
+        $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=4&data=' . urlencode($verifyUrl);
+        $qrData = false;
+        if (function_exists('curl_init')) {
+            $ch = curl_init($qrApiUrl);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 8,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_SSL_VERIFYPEER => false,
+            ]);
+            $qrData = curl_exec($ch);
+            curl_close($ch);
+        } elseif (ini_get('allow_url_fopen')) {
+            $qrData = @file_get_contents($qrApiUrl);
+        }
+        if ($qrData && strlen($qrData) > 500) {
+            $qrTmp = sys_get_temp_dir() . '/qr_card_' . $memberId . '_' . time() . '.png';
+            file_put_contents($qrTmp, $qrData);
+            // Insérer QR dans le coin bas-droit de la carte (18x18mm)
+            // Page 2 dédiée au QR code (même format carte)
+            $pdf->AddPage();
+            $pdf->SetFillColor(...$rgb);
+            $pdf->Rect(0, 0, 85.6, 54, 'F');
+
+            // Titre
+            $pdf->SetFont('Helvetica', 'B', 8);
+            $pdf->SetTextColor(255, 255, 255);
+            $pdf->SetXY(0, 3);
+            $pdf->Cell(85.6, 5, 'QR CODE - ' . iconv('UTF-8', 'ISO-8859-1//TRANSLIT', strtoupper($fullname)), 0, 0, 'C');
+
+            // QR grand (35x35mm) centré
+            $pdf->Image($qrTmp, 25.3, 10, 35, 35);
+
+            // REF sous le QR
+            $pdf->SetFont('Helvetica', '', 6);
+            $pdf->SetTextColor(255, 255, 255);
+            $pdf->SetXY(0, 47);
+            $pdf->Cell(85.6, 4, 'REF: ' . chunk_split($shortHash, 4, '-') . '   ' . iconv('UTF-8', 'ISO-8859-1//TRANSLIT', $club), 0, 0, 'C');
+        }
+    } catch(Exception $e) {
+        // Si le QR ne peut pas être généré, on continue sans
+    }
 
     // Vider tout buffer de sortie avant d'envoyer les headers PDF
     while (ob_get_level()) ob_end_clean();
@@ -154,6 +200,8 @@ if ((defined('CARD_DOWNLOAD_MODE') && CARD_DOWNLOAD_MODE) || ($_GET['dl'] ?? '')
         header('Content-Disposition: inline; filename="carte-membre-' . $memberId . '.pdf"');
         $pdf->Output('I', 'carte-membre-' . $memberId . '.pdf');
     }
+    // Nettoyer le fichier QR temporaire
+    if ($qrTmp && file_exists($qrTmp)) @unlink($qrTmp);
     exit;
 
 endif; // fin génération PDF
@@ -181,7 +229,7 @@ endif; // fin génération PDF
       <?php endif; ?>
       <div class="card-hash">REF: <?= strtoupper(chunk_split(substr($user['member_card_hash'], -8), 4, '-')) ?></div>
       <div style="margin-top:.5rem">
-        <img src="<?= $qrUrl ?>" width="70" height="70" alt="QR Code" style="border-radius:6px;border:2px solid rgba(255,255,255,.3)">
+        <img src="<?= $qrUrl ?>" width="100" height="100" alt="QR Code" style="border-radius:8px;border:2px solid rgba(255,255,255,.3);display:block">
       </div>
     </div>
   </div>

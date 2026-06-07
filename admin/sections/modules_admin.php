@@ -24,7 +24,7 @@ if ($section === 'modules') {
     <div class="ac">
       <div class="ac-body">
         <p style="color:#64748b;font-size:.875rem;margin-bottom:1.25rem">Activez ou désactivez les modules et définissez si une connexion est requise pour y accéder.</p>
-        <table class="at">
+        <div class="at-wrap"><table class="at">
           <thead><tr><th>Module</th><th>Activé</th><th>Connexion requise</th></tr></thead>
           <tbody>
             <?php foreach($modules as $m): ?>
@@ -35,7 +35,7 @@ if ($section === 'modules') {
             </tr>
             <?php endforeach; ?>
           </tbody>
-        </table>
+        </table></div>
       </div>
     </div>
     <script>
