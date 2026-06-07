@@ -1505,21 +1505,8 @@ elseif($action==='annuaire'):
     </div>
   </div>
 </div>
-<?php endif; ?>
-
-  </div><!-- bcontent -->
-</main>
-</div>
-
-<script>
-function dismissAlert(id){
-  var el=document.getElementById('al-'+id);
-  fetch('<?=u('/benevole')?>', {method:'POST',body:new URLSearchParams({dismiss_alert:1,alert_id:id,_csrf_token:'<?=Auth::getCsrfToken()?>'}),headers:{'X-Requested-With':'XMLHttpRequest'}});
-  if(el){el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(function(){el.remove()},300);}
-}
-</script>
-<?php $content=ob_get_clean(); echo $content; ?>
-<?php elseif($action==='verif' && $canVerifCarte):
+<?php endif; // ferme le bloc elseif des actions ?>
+<?php if($action==='verif' && $canVerifCarte):
 $benvVerifUrl = u('/benevole/verif');
 ?>
 <div class="bcard" style="max-width:560px;margin:0 auto">
@@ -1608,5 +1595,20 @@ $benvVerifUrl = u('/benevole/verif');
   </div>
 </div>
 
-<?php
+<?php endif; // fin bloc verif ?>
 
+  </div><!-- bcontent -->
+</main>
+</div>
+
+<script>
+function dismissAlert(id){
+  var el=document.getElementById('al-'+id);
+  fetch('<?=u('/benevole')?>', {method:'POST',body:new URLSearchParams({dismiss_alert:1,alert_id:id,_csrf_token:'<?=Auth::getCsrfToken()?>'}),headers:{'X-Requested-With':'XMLHttpRequest'}});
+  if(el){el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(function(){el.remove()},300);}
+}
+</script>
+
+<?php
+$content = ob_get_clean();
+include CC_ROOT . '/templates/layout.php';
