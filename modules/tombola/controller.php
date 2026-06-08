@@ -14,6 +14,7 @@ try { Database::run("ALTER TABLE cc_tombola ADD COLUMN IF NOT EXISTS visibility 
 try { Database::run("ALTER TABLE cc_tombola ADD COLUMN IF NOT EXISTS close_at DATETIME DEFAULT NULL"); } catch(Exception $e) {}
 try { Database::run("ALTER TABLE cc_tombola ADD COLUMN IF NOT EXISTS msg_waiting VARCHAR(500) DEFAULT 'Le tirage aura lieu prochainement !'"); } catch(Exception $e) {}
 try { Database::run("ALTER TABLE cc_tombola_participants ADD COLUMN IF NOT EXISTS order_id INT DEFAULT NULL"); } catch(Exception $e) {}
+try { Database::run("ALTER TABLE cc_tombola ADD COLUMN IF NOT EXISTS guest_fields JSON DEFAULT NULL"); } catch(Exception $e) {}
 
 $isAdmin   = Auth::isAdmin();
 $isLogged  = Auth::check();

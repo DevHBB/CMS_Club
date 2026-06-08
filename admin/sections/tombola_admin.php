@@ -18,6 +18,7 @@ try { Database::run("CREATE TABLE IF NOT EXISTS cc_tombola_participants (id INT 
 try { Database::run("ALTER TABLE cc_tombola_participants ADD COLUMN IF NOT EXISTS order_id INT DEFAULT NULL"); } catch(Exception $e) {}
 try { Database::run("ALTER TABLE cc_tombola_participants ADD COLUMN IF NOT EXISTS extra_data JSON DEFAULT NULL"); } catch(Exception $e) {}
 try { Database::run("ALTER TABLE cc_tombola ADD COLUMN IF NOT EXISTS participation ENUM('all','members') DEFAULT 'all'"); } catch(Exception $e) {}
+try { Database::run("ALTER TABLE cc_tombola ADD COLUMN IF NOT EXISTS guest_fields JSON DEFAULT NULL"); } catch(Exception $e) {}
 try { Database::run("ALTER TABLE cc_tombola_participants ADD COLUMN IF NOT EXISTS extra_data JSON DEFAULT NULL"); } catch(Exception $e) {}
 try { Database::run("ALTER TABLE cc_tombola ADD COLUMN IF NOT EXISTS participation ENUM('all','members','benevole','coach','admin') DEFAULT 'all'"); } catch(Exception $e) {}
 
@@ -46,7 +47,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && Auth::verifyCsrf()) {
             'visibility'  => $visibility,
             'close_at'    => $closeAt,
             'msg_waiting'   => $msgWaiting,
-            'participation' => in_array($_POST['participation']??'',['all','members','benevole','coach','admin']) ? $_POST['participation'] : 'all',
+            'participation' => in_array($_POST['participation']??'',['all','members']) ? $_POST['participation'] : 'all',
+            'guest_fields'  => (function(){
+                $labels = $_POST['gf_label'] ?? [];
+                $reqs   = $_POST['gf_required'] ?? [];
+                $fields = [];
+                foreach ($labels as $i => $label) {
+                    $label = trim($label);
+                    if ($label === '') continue;
+                    $fields[] = ['label' => $label, 'required' => isset($reqs[$i]) ? 1 : 0];
+                }
+                return empty($fields) ? null : json_encode($fields, JSON_UNESCAPED_UNICODE);
+            })(),
         ];
         if ($editId > 0) {
             $sets = implode(',', array_map(fn($k)=>"`$k`=?", array_keys($data)));
@@ -285,7 +297,7 @@ ob_start();
           <div class="gf-row" style="display:flex;align-items:center;gap:.5rem">
             <input type="text" name="gf_label[]" value="<?=Helpers::e($gf['label']??'')?>" class="bi" placeholder="Ex: Téléphone" style="flex:1">
             <label style="display:flex;align-items:center;gap:.3rem;font-size:.8rem;white-space:nowrap;cursor:pointer">
-              <input type="checkbox" name="gf_required[]" value="1" <?=($gf['required']??0)?'checked':''?>>
+              <input type="checkbox" name="gf_required[<?=$i?>]" value="1" <?=($gf['required']??0)?'checked':''?>>
               Obligatoire
             </label>
             <button type="button" onclick="this.closest('.gf-row').remove()" style="background:#fee2e2;border:none;border-radius:6px;color:#dc2626;cursor:pointer;padding:.3rem .5rem;font-size:.9rem">✕</button>
@@ -296,18 +308,20 @@ ob_start();
       </div>
       <script>
       function addGfRow(){
-        var list = document.getElementById('gf-list');
-        var row  = document.createElement('div');
+        var list  = document.getElementById('gf-list');
+        var idx   = list.querySelectorAll('.gf-row').length;
+        var row   = document.createElement('div');
+        row.className = 'gf-row';
         row.style.cssText = 'display:flex;align-items:center;gap:.5rem';
 
         var inp = document.createElement('input');
         inp.type = 'text'; inp.name = 'gf_label[]'; inp.className = 'bi';
-        inp.placeholder = 'Ex: Téléphone'; inp.style.flex = '1';
+        inp.placeholder = 'Ex: Téléphone, Ville, Age...'; inp.style.flex = '1';
 
         var lbl = document.createElement('label');
         lbl.style.cssText = 'display:flex;align-items:center;gap:.3rem;font-size:.8rem;white-space:nowrap;cursor:pointer';
         var chk = document.createElement('input');
-        chk.type = 'checkbox'; chk.name = 'gf_required[]'; chk.value = '1';
+        chk.type = 'checkbox'; chk.name = 'gf_required[' + idx + ']'; chk.value = '1';
         lbl.appendChild(chk);
         lbl.appendChild(document.createTextNode(' Obligatoire'));
 

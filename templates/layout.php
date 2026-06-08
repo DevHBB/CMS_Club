@@ -511,7 +511,7 @@ if (document.cookie.indexOf('googtrans') !== -1) {
 <?php endif; ?>
 <?php if(Config::get('cookie_banner_enabled', '1')): ?>
 <!-- ── Bandeau cookies ── -->
-<div id="cookie-banner" style="display:none;position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);z-index:9989;width:min(520px,calc(100vw - 2rem));background:#1e293b;color:#e2e8f0;border-radius:14px;padding:1rem 1.25rem;box-shadow:0 8px 32px rgba(0,0,0,.25);display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+<div id="cookie-banner" style="display:none;position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);z-index:9989;width:min(520px,calc(100vw - 2rem));background:#1e293b;color:#e2e8f0;border-radius:14px;padding:1rem 1.25rem;box-shadow:0 8px 32px rgba(0,0,0,.25);align-items:center;gap:1rem;flex-wrap:wrap">
   <span style="font-size:1.3rem;flex-shrink:0">🍪</span>
   <p style="flex:1;font-size:.82rem;line-height:1.5;margin:0;color:#cbd5e1">
     <?=Helpers::e(Config::get('cookie_text', 'Ce site utilise des cookies pour améliorer votre expérience. En continuant à naviguer, vous acceptez leur utilisation.'))?>

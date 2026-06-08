@@ -159,13 +159,10 @@
     <div class="admin-nav-group">Contenu</div>
     <a href="<?=u('/admin/pageheaders')?>" class="admin-nav-item <?=$section==='pageheaders'?'active':''?>">🏷️ En-têtes pages</a>
     <a href="<?=u('/admin/pages')?>"    class="admin-nav-item <?=$section==='pages'?'active':''?>">📝 Pages & accueil</a>
-    <a href="<?=u('/admin/contact')?>"   class="admin-nav-item <?=$section==='contact'?'active':''?>">📬 Contact</a>
-    <a href="<?=u('/admin/tombola')?>"   class="admin-nav-item <?=$section==='tombola'?'active':''?>">🎰 Tombola</a>
-    <a href="<?=u('/admin/invoices')?>" class="admin-nav-item <?=$section==='invoices'?'active':''?>">🧾 Factures</a>
-    <a href="<?=u('/admin/logs')?>"     class="admin-nav-item <?=$section==='logs'?'active':''?>">📋 Logs & Backups</a>
     <a href="<?=u('/admin/articles')?>" class="admin-nav-item <?=$section==='articles'?'active':''?>">📰 Articles</a>
     <a href="<?=u('/admin/menu')?>"     class="admin-nav-item <?=$section==='menu'?'active':''?>">🔗 Menu</a>
     <a href="<?=u('/admin/legal')?>"    class="admin-nav-item <?=$section==='legal'?'active':''?>">⚖️ Mentions légales</a>
+    <a href="<?=u('/admin/contact')?>"  class="admin-nav-item <?=$section==='contact'?'active':''?>">📬 Contact</a>
     <?php endif; ?>
 
     <div class="admin-nav-group">Modules</div>
@@ -176,9 +173,11 @@
     <?php if(Auth::isAdmin()): ?>
     <a href="<?=u('/admin/forum')?>"    class="admin-nav-item <?=$section==='forum'?'active':''?>">💬 Forum</a>
     <a href="<?=u('/admin/shop')?>"     class="admin-nav-item <?=$section==='shop'?'active':''?>">🛒 Boutique</a>
+    <a href="<?=u('/admin/invoices')?>" class="admin-nav-item <?=$section==='invoices'?'active':''?>">🧾 Factures</a>
     <a href="<?=u('/admin/results')?>"  class="admin-nav-item <?=$section==='results'?'active':''?>">🏆 Résultats</a>
     <a href="<?=u('/admin/videos')?>"   class="admin-nav-item <?=$section==='videos'?'active':''?>">🎬 Vidéos</a>
     <a href="<?=u('/admin/gallery')?>"  class="admin-nav-item <?=$section==='gallery'?'active':''?>">📸 Galerie</a>
+    <a href="<?=u('/admin/tombola')?>"  class="admin-nav-item <?=$section==='tombola'?'active':''?>">🎰 Tombola</a>
     <div class="admin-nav-group">Communication</div>
     <a href="<?=u('/admin/mails')?>"    class="admin-nav-item <?=$section==='mails'?'active':''?>">✉️ Modèles emails</a>
     <a href="<?=u('/admin/newsletter')?>" class="admin-nav-item <?=$section==='newsletter'?'active':''?>">📨 Newsletter</a>
@@ -189,6 +188,7 @@
     <div class="admin-nav-group">Système</div>
     <a href="<?=u('/admin/config')?>"   class="admin-nav-item <?=$section==='config'?'active':''?>">⚙️ Paramètres</a>
     <a href="<?=u('/admin/update')?>"   class="admin-nav-item <?=$section==='update'?'active':''?>">🔄 Mise à jour</a>
+    <a href="<?=u('/admin/logs')?>"     class="admin-nav-item <?=$section==='logs'?'active':''?>">📋 Logs & Backups</a>
     <?php endif; ?>
 
     <div style="margin-top:auto;padding:.4rem .6rem;border-top:1px solid rgba(255,255,255,.08)">
