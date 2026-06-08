@@ -109,6 +109,8 @@ switch ($module) {
     case 'video':              include CC_ROOT.'/modules/videos/controller.php'; break;
     case 'resultats':
     case 'results':            include CC_ROOT.'/modules/results/controller.php'; break;
+    case 'contact':            include CC_ROOT.'/modules/contact/controller.php'; break;
+    case 'tombola':            include CC_ROOT.'/modules/tombola/controller.php'; break;
     case 'planning':
     case 'agenda':             moduleEnabled('planning');include CC_ROOT.'/modules/planning/controller.php'; break;
     case 'benevole':           include CC_ROOT.'/modules/benevole/controller.php'; break;

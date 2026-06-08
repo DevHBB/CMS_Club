@@ -159,6 +159,8 @@
     <div class="admin-nav-group">Contenu</div>
     <a href="<?=u('/admin/pageheaders')?>" class="admin-nav-item <?=$section==='pageheaders'?'active':''?>">🏷️ En-têtes pages</a>
     <a href="<?=u('/admin/pages')?>"    class="admin-nav-item <?=$section==='pages'?'active':''?>">📝 Pages & accueil</a>
+    <a href="<?=u('/admin/contact')?>"   class="admin-nav-item <?=$section==='contact'?'active':''?>">📬 Contact</a>
+    <a href="<?=u('/admin/tombola')?>"   class="admin-nav-item <?=$section==='tombola'?'active':''?>">🎰 Tombola</a>
     <a href="<?=u('/admin/articles')?>" class="admin-nav-item <?=$section==='articles'?'active':''?>">📰 Articles</a>
     <a href="<?=u('/admin/menu')?>"     class="admin-nav-item <?=$section==='menu'?'active':''?>">🔗 Menu</a>
     <a href="<?=u('/admin/legal')?>"    class="admin-nav-item <?=$section==='legal'?'active':''?>">⚖️ Mentions légales</a>

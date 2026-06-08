@@ -115,6 +115,7 @@ ob_start();
   <div style="display:flex;gap:.5rem">
     <a href="<?=u('/admin/pages?tab=homepage')?>" class="btn <?=$tab==='homepage'?'btn-primary':'btn-ghost'?>">🏠 Accueil</a>
     <a href="<?=u('/admin/pages?tab=pages')?>"    class="btn <?=$tab==='pages'?'btn-primary':'btn-ghost'?>">📄 Pages</a>
+
     <?php if($tab==='pages'): ?>
     <a href="<?=u('/admin/pages?tab=pages&edit=0')?>" class="btn btn-primary">+ Nouvelle page</a>
     <?php endif; ?>

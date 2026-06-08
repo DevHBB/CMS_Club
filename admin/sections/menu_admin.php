@@ -88,6 +88,8 @@ $suggestions = [
     ['📅', 'Planning',    '/planning'],
     ['👤', 'Mon compte',  '/membre'],
     ['📝', 'Inscription', '/register'],
+    ['📬', 'Contact',     '/contact'],
+    ['🎰', 'Tombola',     '/tombola'],
 ];
 $pages = Database::all("SELECT title, slug, type FROM cc_articles WHERE published=1 ORDER BY type, title");
 

@@ -313,7 +313,7 @@ ob_start();
 <?php elseif(!$ghCheck['error'] && !$updateAvailable): ?>
 <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:.875rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:.75rem">
   <span style="font-size:1.25rem">✅</span>
-  <div><strong>ClubCMS est à jour</strong> — kk vous utilisez la dernière version (v<?=$currentVersion?>).</div>
+  <div><strong>ClubCMS est à jour</strong> — vous utilisez la dernière version (v<?=$currentVersion?>).</div>
 </div>
 <?php elseif($ghCheck['error']): ?>
 <div style="background:#fef3c7;border:1.5px solid #fde68a;border-radius:10px;padding:.875rem 1.25rem;margin-bottom:1.25rem">

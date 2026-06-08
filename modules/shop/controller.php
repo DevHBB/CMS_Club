@@ -91,6 +91,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'commande') {
             "UPDATE cc_shop_products SET stock = GREATEST(stock - ?, 0) WHERE id = ? AND stock != -1",
             [$item['qty'], $item['product_id']]
         );
+        // ── Hook Tombola : si produit = ticket tombola, inscrire l'acheteur ──
+        if ($method !== 'offline' && Auth::id()) {
+            try {
+                $tombola = Database::one("SELECT * FROM cc_tombola WHERE product_id=? AND status='active'", [$item['product_id']]);
+                if ($tombola) {
+                    $uid = Auth::id();
+                    $user = Auth::user();
+                    // Vérifier multi_entry
+                    if (!$tombola['multi_entry']) {
+                        $exists = Database::scalar("SELECT id FROM cc_tombola_participants WHERE tombola_id=? AND user_id=?", [$tombola['id'], $uid]);
+                    } else {
+                        $exists = false;
+                    }
+                    if (!$exists) {
+                        for ($t = 0; $t < max(1,(int)$item['qty']); $t++) {
+                            Database::run("INSERT INTO cc_tombola_participants (tombola_id,user_id,name,email,order_id) VALUES (?,?,?,?,?)",
+                                [$tombola['id'], $uid, $user['firstname'].' '.$user['lastname'], $user['email'], $orderId]);
+                        }
+                    } elseif ($tombola['multi_entry']) {
+                        for ($t = 0; $t < max(1,(int)$item['qty']); $t++) {
+                            Database::run("INSERT INTO cc_tombola_participants (tombola_id,user_id,name,email,order_id) VALUES (?,?,?,?,?)",
+                                [$tombola['id'], $uid, $user['firstname'].' '.$user['lastname'], $user['email'], $orderId]);
+                        }
+                    }
+                }
+            } catch(Exception $e) {}
+        }
     }
 
     // Email confirmation

@@ -103,6 +103,150 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_order_status']
     Helpers::redirect(u('/admin/shop?tab=orders'));
 }
 
+// ── Annuler et rembourser ─────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['refund_order']) && Auth::verifyCsrf()) {
+    $oid   = (int)($_POST['order_id'] ?? 0);
+    $order = $oid ? Database::one("SELECT o.*, u.firstname, u.lastname, u.email AS user_email FROM cc_shop_orders o LEFT JOIN cc_users u ON o.user_id=u.id WHERE o.id=?", [$oid]) : null;
+
+    if (!$order) { adminFlash('error','Commande introuvable.'); Helpers::redirect(u('/admin/shop?tab=orders')); }
+    if (in_array($order['status'], ['cancelled','refunded'])) { adminFlash('error','Commande déjà annulée/remboursée.'); Helpers::redirect(u('/admin/shop?tab=orders')); }
+
+    $addr       = json_decode($order['shipping_address']??'{}', true) ?? [];
+    $clientEmail= $order['user_email'] ?? $addr['email'] ?? '';
+    $clientName = trim(($order['firstname'] ?? $addr['firstname'] ?? '') . ' ' . ($order['lastname'] ?? $addr['lastname'] ?? ''));
+    $items      = json_decode($order['items']??'[]', true) ?? [];
+    $total      = number_format((float)$order['total'], 2, ',', ' ');
+    $method     = $order['payment_method'] ?? '';
+    $paymentId  = $order['payment_id'] ?? '';
+
+    $refundResult = ['status'=>'manual', 'message'=>''];
+
+    // ── Tentative de remboursement PayPal ─────────────────────
+    if ($method === 'paypal' && $paymentId) {
+        $ppClient = Config::get('paypal_client','');
+        $ppSecret = Config::get('paypal_secret','');
+        $ppMode   = Config::get('paypal_mode','sandbox');
+        $ppBase   = $ppMode === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
+
+        if ($ppClient && $ppSecret) {
+            try {
+                // 1. Obtenir un token d'accès
+                $ch = curl_init("$ppBase/v1/oauth2/token");
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_POST           => true,
+                    CURLOPT_USERPWD        => "$ppClient:$ppSecret",
+                    CURLOPT_POSTFIELDS     => 'grant_type=client_credentials',
+                    CURLOPT_SSL_VERIFYPEER => false,
+                    CURLOPT_HTTPHEADER     => ['Accept: application/json','Accept-Language: fr_FR'],
+                ]);
+                $tokenResp = json_decode(curl_exec($ch), true);
+                curl_close($ch);
+                $token = $tokenResp['access_token'] ?? '';
+
+                if ($token) {
+                    // 2. Trouver l'identifiant de capture (capture ID)
+                    $ch2 = curl_init("$ppBase/v2/checkout/orders/$paymentId");
+                    curl_setopt_array($ch2, [
+                        CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_SSL_VERIFYPEER => false,
+                        CURLOPT_HTTPHEADER     => ["Authorization: Bearer $token",'Content-Type: application/json'],
+                    ]);
+                    $orderResp = json_decode(curl_exec($ch2), true);
+                    curl_close($ch2);
+                    $captureId = $orderResp['purchase_units'][0]['payments']['captures'][0]['id'] ?? '';
+
+                    if ($captureId) {
+                        // 3. Effectuer le remboursement
+                        $ch3 = curl_init("$ppBase/v2/payments/captures/$captureId/refund");
+                        $body = json_encode(['amount'=>['value'=>number_format((float)$order['total'],2,'.',''),'currency_code'=>'EUR'],'note_to_payer'=>'Remboursement de votre commande #'.$oid]);
+                        curl_setopt_array($ch3, [
+                            CURLOPT_RETURNTRANSFER => true,
+                            CURLOPT_POST           => true,
+                            CURLOPT_POSTFIELDS     => $body,
+                            CURLOPT_SSL_VERIFYPEER => false,
+                            CURLOPT_HTTPHEADER     => ["Authorization: Bearer $token",'Content-Type: application/json'],
+                        ]);
+                        $refundResp = json_decode(curl_exec($ch3), true);
+                        curl_close($ch3);
+
+                        if (($refundResp['status'] ?? '') === 'COMPLETED') {
+                            $refundResult = ['status'=>'paypal_ok','message'=>'Remboursement PayPal effectué (ID: '.$refundResp['id'].')'];
+                        } else {
+                            $refundResult = ['status'=>'paypal_fail','message'=>'Erreur PayPal : '.($refundResp['message']??json_encode($refundResp))];
+                        }
+                    } else {
+                        $refundResult = ['status'=>'paypal_fail','message'=>"Capture PayPal introuvable — remboursez manuellement via le tableau de bord PayPal."];
+                    }
+                } else {
+                    $refundResult = ['status'=>'paypal_fail','message'=>"Impossible de s'authentifier à l'API PayPal. Vérifiez vos clés Client ID / Secret."];
+                }
+            } catch(Exception $e) {
+                $refundResult = ['status'=>'paypal_fail','message'=>'Erreur cURL : '.$e->getMessage()];
+            }
+        } else {
+            $refundResult = ['status'=>'paypal_no_creds','message'=>"Clés API PayPal non configurées — remboursez manuellement via le tableau de bord PayPal."];
+        }
+    } elseif ($method === 'virement' || $method === 'offline') {
+        $refundResult = ['status'=>'virement','message'=>"Paiement par virement — procédez au remboursement manuel."];
+    }
+
+    // ── Remettre le stock ─────────────────────────────────────
+    foreach ($items as $it) {
+        if (!empty($it['product_id'])) {
+            try {
+                Database::run("UPDATE cc_shop_products SET stock = stock + ? WHERE id=?", [(int)$it['qty'], (int)$it['product_id']]);
+            } catch(Exception $e) {}
+        }
+    }
+
+    // ── Mettre à jour le statut ───────────────────────────────
+    $newStatus = $refundResult['status'] === 'paypal_ok' ? 'refunded' : 'cancelled';
+    Database::run("UPDATE cc_shop_orders SET status=? WHERE id=?", [$newStatus, $oid]);
+
+    // ── Envoyer l'email au client ─────────────────────────────
+    if ($clientEmail) {
+        $itemsHtml = '';
+        foreach ($items as $it) {
+            $itemsHtml .= '<tr><td style="padding:.4rem .75rem">' . htmlspecialchars($it['name']) . '</td>'
+                . '<td style="padding:.4rem .75rem;text-align:center">×' . (int)$it['qty'] . '</td>'
+                . '<td style="padding:.4rem .75rem;text-align:right">' . Helpers::price($it['price'] * $it['qty']) . '</td></tr>';
+        }
+        $refundNote = '';
+        if ($refundResult['status'] === 'paypal_ok') {
+            $refundNote = '<p style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:.875rem;color:#166534">✅ <strong>Remboursement PayPal effectué automatiquement.</strong> Le montant de <strong>' . $total . ' €</strong> sera crédité sur votre compte PayPal dans 3 à 5 jours ouvrés.</p>';
+        } else {
+            $refundNote = '<p style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:.875rem;color:#9a3412">⚠️ <strong>Remboursement à traiter manuellement.</strong> Vous recevrez <strong>' . $total . ' €</strong> par ' . ($method === 'paypal' ? 'PayPal' : 'virement bancaire') . ' dans les prochains jours.</p>';
+        }
+        $emailBody = '
+<div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
+  <div style="background:var(--color-primary,#1d4ed8);color:#fff;padding:1.5rem;text-align:center">
+    <h1 style="margin:0;font-size:1.25rem">🔄 Commande annulée et remboursée</h1>
+  </div>
+  <div style="padding:1.5rem">
+    <p>Bonjour <strong>' . htmlspecialchars($clientName) . '</strong>,</p>
+    <p>Votre commande <strong>#' . $oid . '</strong> a été annulée. Voici le récapitulatif :</p>
+    <table style="width:100%;border-collapse:collapse;margin:1rem 0;font-size:.9rem">
+      <thead><tr style="background:#f8fafc"><th style="padding:.4rem .75rem;text-align:left">Article</th><th style="padding:.4rem .75rem;text-align:center">Qté</th><th style="padding:.4rem .75rem;text-align:right">Prix</th></tr></thead>
+      <tbody>' . $itemsHtml . '</tbody>
+      <tfoot><tr style="font-weight:700;border-top:2px solid #e2e8f0"><td colspan="2" style="padding:.5rem .75rem">Total remboursé</td><td style="padding:.5rem .75rem;text-align:right">' . $total . ' €</td></tr></tfoot>
+    </table>
+    ' . $refundNote . '
+    <p style="color:#64748b;font-size:.875rem;margin-top:1rem">Pour toute question, contactez-nous à <a href="mailto:' . htmlspecialchars(Config::get('club_email','')) . '">' . htmlspecialchars(Config::get('club_email','')) . '</a>.</p>
+  </div>
+</div>';
+        try {
+            Mailer::send($clientEmail, $clientName, 'Annulation et remboursement — Commande #'.$oid, $emailBody);
+        } catch(Exception $e) {}
+    }
+
+    // Stocker le résultat pour affichage
+    $_SESSION['refund_result_'.$oid] = $refundResult;
+    adminFlash($refundResult['status'] === 'paypal_ok' ? 'success' : 'warning',
+        '✅ Commande annulée. ' . ($refundResult['message'] ?? ''));
+    Helpers::redirect(u('/admin/shop?tab=orders'));
+}
+
 // Migration auto colonnes catégories
 try { Database::run("ALTER TABLE cc_shop_categories ADD COLUMN description TEXT"); } catch(Exception $e) {}
 try { Database::run("ALTER TABLE cc_shop_categories ADD COLUMN color VARCHAR(7) NOT NULL DEFAULT '#6366f1'"); } catch(Exception $e) {}
@@ -338,6 +482,22 @@ $editCat   = $editCatId ? Database::one("SELECT * FROM cc_shop_categories WHERE 
           <details><summary class="btn btn-ghost btn-sm">Articles</summary>
             <?php foreach($items as $it): ?><div style="font-size:.75rem;padding:.2rem 0"><?=Helpers::e($it['name'])?> ×<?=$it['qty']?> — <?=Helpers::price($it['price']*$it['qty'])?></div><?php endforeach; ?>
           </details>
+          <?php if(!in_array($o['status'],['cancelled','refunded'])): ?>
+          <form method="post" style="margin-top:.35rem" onsubmit="return confirm('Annuler et rembourser la commande #<?=$o['id']?> (<?=Helpers::price($o['total'])?>) ?
+
+Cette action est irréversible.')">
+            <?=Auth::csrfField()?>
+            <input type="hidden" name="order_id" value="<?=$o['id']?>">
+            <button type="submit" name="refund_order" class="btn btn-sm"
+              style="background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca;display:flex;align-items:center;gap:.3rem;white-space:nowrap">
+              🔄 Annuler &amp; rembourser
+            </button>
+          </form>
+          <?php elseif($o['status']==='refunded'): ?>
+          <span style="font-size:.72rem;color:#16a34a;font-weight:600">✅ Remboursé</span>
+          <?php elseif($o['status']==='cancelled'): ?>
+          <span style="font-size:.72rem;color:#64748b">❌ Annulée</span>
+          <?php endif; ?>
         </td>
       </tr>
       <?php endforeach; ?>

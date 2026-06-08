@@ -198,6 +198,13 @@ if ($action === 'export') {
         $labelPeriode = frDate($base, 'F Y');
     }
 
+    // Ajouter colonnes si pas encore migrées
+    try { Database::run("ALTER TABLE cc_planning_slots ADD COLUMN IF NOT EXISTS members_only TINYINT(1) DEFAULT 0"); } catch(Exception $e) {}
+    try { Database::run("ALTER TABLE cc_planning_slots ADD COLUMN IF NOT EXISTS members_message TINYINT(1) DEFAULT 0"); } catch(Exception $e) {}
+    try { Database::run("ALTER TABLE cc_planning_slots ADD COLUMN IF NOT EXISTS members_msg_text VARCHAR(500) DEFAULT 'Il faut être membre pour participer.'"); } catch(Exception $e) {}
+
+    $isLoggedIn = Auth::check();
+
     $slots = Database::all(
         "SELECT s.*, u.firstname AS coach_firstname, u.lastname AS coach_lastname
          FROM cc_planning_slots s
@@ -207,6 +214,12 @@ if ($action === 'export') {
          ORDER BY s.date_start ASC",
         [$start->format('Y-m-d'), $end->format('Y-m-d')]
     );
+
+    // Filtrer les créneaux membres_only si non connecté
+    if (!$isLoggedIn) {
+        $slots = array_filter($slots, fn($s) => empty($s['members_only']));
+        $slots = array_values($slots);
+    }
 
     $planningTypes = [];
     try {
@@ -369,12 +382,23 @@ if ($view === 'week') {
     $end   = new DateTime($baseDate->format('Y-m-t'));
 }
 
+// Migration colonnes membres
+try { Database::run("ALTER TABLE cc_planning_slots ADD COLUMN IF NOT EXISTS members_only TINYINT(1) DEFAULT 0"); } catch(Exception $e) {}
+try { Database::run("ALTER TABLE cc_planning_slots ADD COLUMN IF NOT EXISTS members_message TINYINT(1) DEFAULT 0"); } catch(Exception $e) {}
+try { Database::run("ALTER TABLE cc_planning_slots ADD COLUMN IF NOT EXISTS members_msg_text VARCHAR(500) DEFAULT 'Il faut être membre pour participer.'"); } catch(Exception $e) {}
+
+$isLoggedIn = Auth::check();
+
+// Si visiteur non connecté → exclure les créneaux members_only
+$membersOnlyClause = $isLoggedIn ? '' : 'AND (s.members_only = 0 OR s.members_only IS NULL)';
+
 $slots = Database::all(
     "SELECT s.*, u.firstname AS coach_firstname, u.lastname AS coach_lastname
      FROM cc_planning_slots s
      LEFT JOIN cc_users u ON s.coach_id = u.id
      WHERE s.published = 1
        AND s.date_start <= ? AND s.date_end >= ?
+       $membersOnlyClause
      ORDER BY s.date_start ASC",
     [$end->format('Y-m-d 23:59:59'), $start->format('Y-m-d 00:00:00')]
 );
@@ -497,7 +521,14 @@ ob_start();?>
       <?php if ($s['max_participants']): ?>
         <span class="pls-spots <?= $full?'full':'' ?>"><?= $full ? 'Complet' : ($s['max_participants']-$taken).' place'.($s['max_participants']-$taken>1?'s':'') ?></span>
       <?php endif; ?>
-      <?php if ($s['require_booking'] && !$full): ?>
+      <?php
+      // Message membres : visiteur non connecté + option cochée
+      if (!$isLoggedIn && !empty($s['members_message'])):
+      ?>
+        <span style="font-size:.75rem;color:#f59e0b;font-weight:600;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:.25rem .6rem;display:inline-block;max-width:140px;text-align:center;line-height:1.3">
+          🔒 <?=Helpers::e($s['members_msg_text'] ?? 'Il faut être membre pour participer.')?>
+        </span>
+      <?php elseif ($s['require_booking'] && !$full): ?>
         <?php if ($s['booking_form']==='external' && $s['external_url']): ?>
           <a href="<?= Helpers::e($s['external_url']) ?>" target="_blank" class="pls-book">S'inscrire ↗</a>
         <?php else: ?>
@@ -626,6 +657,13 @@ $slot   = Database::one(
     [$slotId]
 );
 if (!$slot) { http_response_code(404); exit; }
+// Bloquer si members_only et non connecté
+if (!empty($slot['members_only']) && !Auth::check()) {
+    Helpers::redirect(u('/login'));
+    exit;
+}
+// Bloquer si members_message et non connecté (pas de réservation)
+$showMembersMsg = !empty($slot['members_message']) && !Auth::check();
 $booked = (bool)($_GET['booked'] ?? false);
 $taken  = (int)Database::scalar("SELECT COUNT(*) FROM cc_planning_bookings WHERE slot_id=? AND status='confirmed'", [$slotId]);
 $full   = $slot['max_participants'] && $taken >= $slot['max_participants'];
@@ -654,6 +692,13 @@ $customFields = json_decode($slot['custom_form_fields'] ?? '[]', true) ?? [];
       <?php endif; ?>
     <?php elseif ($booked): ?>
       <div class="alert alert-success">✅ Inscription confirmée ! Un email de confirmation vous a été envoyé.</div>
+    <?php elseif ($showMembersMsg): ?>
+      <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:1.25rem;text-align:center">
+        <div style="font-size:1.5rem;margin-bottom:.5rem">🔒</div>
+        <div style="font-weight:700;color:#92400e;margin-bottom:.5rem"><?=Helpers::e($slot['members_msg_text'] ?? 'Il faut être membre pour participer.')?></div>
+        <a href="<?=u('/login')?>" class="btn btn-primary" style="margin-top:.5rem">Se connecter</a>
+        <a href="<?=u('/register')?>" class="btn btn-ghost" style="margin-top:.5rem">S'inscrire</a>
+      </div>
     <?php elseif (isset($bookingError)): ?>
       <div class="alert alert-error"><?= Helpers::e($bookingError) ?></div>
     <?php elseif ($alreadyBooked): ?>

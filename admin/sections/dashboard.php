@@ -96,6 +96,26 @@ try {
     $hasStats = true;
 } catch(Exception $e) { $hasStats=false; }
 ?>
+<?php
+// Messages de contact non lus
+$unreadContact = 0;
+try {
+    Database::run("CREATE TABLE IF NOT EXISTS cc_contact_messages (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(200) NOT NULL, email VARCHAR(200) NOT NULL, subject VARCHAR(300) DEFAULT '', message TEXT NOT NULL, ip VARCHAR(45) DEFAULT '', read_at DATETIME DEFAULT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)");
+    $unreadContact = (int)Database::scalar("SELECT COUNT(*) FROM cc_contact_messages WHERE read_at IS NULL");
+} catch(Exception $e) {}
+?>
+<?php if($unreadContact > 0): ?>
+<div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:.875rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:.875rem">
+  <span style="font-size:1.5rem;flex-shrink:0">📬</span>
+  <div style="flex:1">
+    <div style="font-weight:700;color:#1d4ed8"><?=$unreadContact?> message<?=$unreadContact>1?'s':''?> de contact non lu<?=$unreadContact>1?'s':''?></div>
+    <div style="font-size:.82rem;color:#3b82f6;margin-top:.15rem">
+      <a href="<?=u('/admin/pages?tab=contact_messages')?>" style="color:#1d4ed8;font-weight:600">Lire les messages →</a>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+
 <?php if($hasStats): ?>
 <div class="ac" style="margin-top:1.5rem">
   <div class="ac-header"><h2>📈 Statistiques de visites <small style="font-weight:400;color:#94a3b8;font-size:.78rem">(RGPD — aucun cookie, aucune donnée personnelle)</small></h2></div>

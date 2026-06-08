@@ -261,6 +261,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_slot'])) {
         'recurrence'      => in_array($_POST['recurrence']??'none',['none','daily','weekly','monthly'])?$_POST['recurrence']:'none',
         'recurrence_end'  => $_POST['recurrence_end']??null,
         'published'       => 1,
+        'members_only'    => isset($_POST['members_only'])    ? 1 : 0,
+        'members_message' => isset($_POST['members_message']) ? 1 : 0,
+        'members_msg_text'=> Helpers::sanitize($_POST['members_msg_text'] ?? 'Il faut être membre pour participer.'),
     ];
     if ($id) {
         $sets = implode(',',array_map(fn($k)=>"`$k`=?",array_keys($data)));
@@ -615,6 +618,34 @@ ob_start();
         <?php endif; ?>
 
       </div>
+      <!-- Visibilité membres -->
+      <div style="border:1.5px solid #e2e8f0;border-radius:10px;padding:1rem;margin-top:1rem;background:#f8fafc">
+        <div style="font-weight:700;font-size:.82rem;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin-bottom:.75rem">🔒 Visibilité</div>
+        <div style="display:flex;flex-direction:column;gap:.75rem">
+          <label style="display:flex;align-items:center;gap:.5rem;font-size:.875rem;cursor:pointer">
+            <input type="checkbox" name="members_only" value="1"
+              <?=($editSlot['members_only']??0)?'checked':''?>>
+            <span><strong>Visible uniquement aux membres connectés</strong><br>
+            <span style="font-size:.78rem;color:#64748b">Les visiteurs non connectés ne verront pas ce créneau du tout</span></span>
+          </label>
+          <div>
+            <label style="display:flex;align-items:center;gap:.5rem;font-size:.875rem;cursor:pointer;margin-bottom:.5rem">
+              <input type="checkbox" name="members_message" value="1" id="cb-members-msg"
+                <?=($editSlot['members_message']??0)?'checked':''?>
+                onchange="document.getElementById('members-msg-text').style.display=this.checked?'block':'none'">
+              <span><strong>Afficher un message aux non-membres</strong><br>
+              <span style="font-size:.78rem;color:#64748b">Le créneau est visible mais sans bouton de réservation, avec un message personnalisé</span></span>
+            </label>
+            <div id="members-msg-text" style="display:<?=($editSlot['members_message']??0)?'block':'none'?>;padding-left:1.75rem">
+              <label style="font-size:.78rem;font-weight:600;color:#64748b;display:block;margin-bottom:.3rem">Texte du message</label>
+              <input type="text" name="members_msg_text" class="bi"
+                value="<?=Helpers::e($editSlot['members_msg_text']??'Il faut être membre pour participer.')?>"
+                placeholder="Il faut être membre pour participer.">
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.25rem">
         <a href="<?=u('/admin/planning')?>" class="btn btn-ghost">Annuler</a>
         <button type="submit" name="save_slot" class="btn btn-primary">💾 Sauvegarder</button>

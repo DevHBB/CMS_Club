@@ -231,6 +231,9 @@ CREATE TABLE IF NOT EXISTS `cc_planning_slots` (
   `custom_form_fields` json DEFAULT NULL,
   `color`              varchar(7) DEFAULT '#3b82f6',
   `published`          tinyint(1) DEFAULT 1,
+  `members_only`       tinyint(1) DEFAULT 0 COMMENT 'Invisible aux visiteurs non connectés',
+  `members_message`    tinyint(1) DEFAULT 0 COMMENT 'Visible mais message aux non-membres',
+  `members_msg_text`   varchar(500) DEFAULT 'Il faut être membre pour participer.',
   `criteria_ids`       text DEFAULT NULL,
   `criteria_required`  text DEFAULT NULL,
   `booking_mode`       varchar(20) DEFAULT 'auto',
@@ -552,6 +555,49 @@ CREATE TABLE IF NOT EXISTS `cc_page_views` (
   `date`     date NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_page_date` (`page`,`date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `cc_contact_messages` (
+  `id`         int(11) NOT NULL AUTO_INCREMENT,
+  `name`       varchar(200) NOT NULL,
+  `email`      varchar(200) NOT NULL,
+  `subject`    varchar(300) DEFAULT '',
+  `message`    text NOT NULL,
+  `ip`         varchar(45) DEFAULT '',
+  `read_at`    datetime DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `cc_tombola` (
+  `id`              int(11) NOT NULL AUTO_INCREMENT,
+  `name`            varchar(200) NOT NULL,
+  `description`     text DEFAULT NULL,
+  `status`          enum('draft','active','closed','done') DEFAULT 'draft',
+  `paid`            tinyint(1) DEFAULT 0 COMMENT 'Participation payante',
+  `price`           decimal(10,2) DEFAULT 0.00,
+  `product_id`      int(11) DEFAULT NULL COMMENT 'Produit boutique lié',
+  `multi_entry`     tinyint(1) DEFAULT 0 COMMENT 'Inscriptions multiples autorisées',
+  `visibility`      enum('all','members') DEFAULT 'all' COMMENT 'Visibilité',
+  `participation`   enum('all','members','coach','admin') DEFAULT 'all' COMMENT 'Qui peut participer',
+  `close_at`        datetime DEFAULT NULL COMMENT 'Date clôture inscriptions',
+  `msg_waiting`     varchar(500) DEFAULT 'Le tirage au sort aura lieu prochainement. Bonne chance !',
+  `winner_id`       int(11) DEFAULT NULL,
+  `winner_name`     varchar(200) DEFAULT NULL,
+  `drawn_at`        datetime DEFAULT NULL,
+  `created_at`      datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `cc_tombola_participants` (
+  `id`          int(11) NOT NULL AUTO_INCREMENT,
+  `tombola_id`  int(11) NOT NULL,
+  `user_id`     int(11) DEFAULT NULL,
+  `name`        varchar(200) NOT NULL,
+  `email`       varchar(200) DEFAULT NULL,
+  `tickets`     int(11) DEFAULT 1 COMMENT 'Nombre de tickets (plus de chances)',
+  `created_at`  datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Données initiales ─────────────────────────────────────────
