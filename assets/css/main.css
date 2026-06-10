@@ -396,7 +396,22 @@ textarea { resize: vertical; min-height: 100px; }
 .footer-copy strong { color: rgba(255,255,255,.6); }
 
 /* ── Responsive ──────────────────────────────────────────────── */
+/* ── nav-actions : ordre et taille ── */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-shrink: 0;
+}
+.btn-nav-login {
+  white-space: nowrap;
+}
+.btn-nav-register {
+  white-space: nowrap;
+}
+
 @media (max-width: 768px) {
+  /* Menu déroulant mobile */
   .nav-links {
     position: fixed; inset: 64px 0 0 0;
     background: #fff; flex-direction: column;
@@ -406,8 +421,23 @@ textarea { resize: vertical; min-height: 100px; }
     z-index: 99;
   }
   .nav-links.open { transform: none; }
+
+  /* Hamburger toujours visible */
   .nav-hamburger { display: flex; }
   .nav-username { display: none; }
+
+  /* Boutons connexion/inscription : plus petits sur mobile */
+  .btn-nav-login {
+    font-size: .78rem;
+    padding: .35rem .7rem;
+  }
+  .btn-nav-register {
+    font-size: .78rem;
+    padding: .35rem .7rem;
+    margin-left: .25rem !important;
+  }
+
+  /* Grilles */
   .form-row { grid-template-columns: 1fr; }
   .auth-card { padding: 1.75rem 1.25rem; }
   .footer-inner { flex-direction: column; text-align: center; }
@@ -415,9 +445,21 @@ textarea { resize: vertical; min-height: 100px; }
 }
 
 @media (max-width: 480px) {
+  /* Sur très petits écrans : masquer le texte des boutons auth,
+     garder juste une icône ou texte très court */
+  .btn-nav-login  { font-size: .72rem; padding: .3rem .55rem; }
+  .btn-nav-register { font-size: .72rem; padding: .3rem .55rem; margin-left: .2rem !important; }
+
+  /* Navbar : brand prend moins de place */
+  .nav-club-name { font-size: 1.1rem; }
+  .nav-logo { height: 28px; }
+}
+
+@media (max-width: 480px) {
   .hero { min-height: 380px; }
   .hero-title { font-size: 2.2rem; }
   .auth-card { border-radius: var(--radius-md); }
+  .nav-club-name { font-size: 1.05rem; }
 }
 
 /* ── Scrollbar colorée ───────────────────────────────────────── */

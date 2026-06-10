@@ -101,7 +101,7 @@
   .admin-sidebar-overlay.open{display:block}
   .admin-main{margin-left:0;width:100%}
   .admin-topbar{padding:.65rem 1rem}
-  .admin-content{padding:1rem .875rem}
+  .admin-content{padding:1rem .875rem;overflow-x:hidden}
   .admin-hamburger{display:flex}
   .admin-nav{flex-direction:column;padding:.5rem}
   .admin-nav-group{display:block;margin-top:.5rem}
@@ -112,21 +112,42 @@
   .span2{grid-column:span 1}
   .stats-grid{grid-template-columns:repeat(2,1fr)}
 
-  /* Tableaux → défilement horizontal */
+  /* Tableaux → défilement horizontal (scroll latéral OK, pas de rétrécissement) */
   .at-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px}
-  .at{min-width:520px}
-  .at th,.at td{padding:.45rem .65rem;font-size:.78rem}
+  .at{min-width:560px;width:max-content}
+  .at th,.at td{padding:.45rem .65rem;font-size:.78rem;white-space:nowrap}
 
   /* Page-head empile sur mobile */
   .page-head{flex-direction:column;align-items:flex-start;gap:.5rem}
   .page-head h1{font-size:1.35rem}
+  .page-head>div{flex-wrap:wrap;gap:.35rem}
 
-  /* Cards */
-  .ac-body{padding:.875rem}
+  /* Cards : ne pas rétrécir sous une largeur minimum */
+  .ac{min-width:0;overflow:hidden}
+  .ac-body{padding:.875rem;overflow-x:auto}
   .ac-header{padding:.625rem .875rem}
+
+  /* Grilles à deux colonnes → une colonne */
+  [style*="grid-template-columns:1fr 380px"],
+  [style*="grid-template-columns: 1fr 380px"],
+  [style*="grid-template-columns:1fr 340px"]{
+    grid-template-columns:1fr !important
+  }
+
+  /* Inputs et selects ne dépassent pas */
+  input,select,textarea{max-width:100%;box-sizing:border-box}
 
   /* Boutons en pleine largeur sur petits écrans */
   .btn-block-mobile{width:100%;justify-content:center}
+
+  /* Barre de boutons tabs → scroll horizontal */
+  .page-head + div,
+  div[style*="display:flex"][style*="gap:.35rem"]{
+    overflow-x:auto;
+    flex-wrap:nowrap;
+    padding-bottom:.25rem;
+    -webkit-overflow-scrolling:touch
+  }
 
   /* QR scanner lisible sur mobile */
   #qr-reader-main{max-width:100% !important}
@@ -135,9 +156,14 @@
 
 @media(max-width:480px){
   .stats-grid{grid-template-columns:1fr 1fr}
-  .admin-content{padding:.75rem .625rem}
-  .btn{font-size:.78rem;padding:.4rem .8rem}
-  .btn-sm{font-size:.72rem;padding:.25rem .5rem}
+  .admin-content{padding:.75rem .5rem}
+  .btn{font-size:.78rem;padding:.4rem .75rem}
+  .btn-sm{font-size:.7rem;padding:.25rem .45rem}
+  /* Stats cards : texte plus petit */
+  .stat-val{font-size:1.5rem !important}
+  .stat-label{font-size:.72rem !important}
+  /* Tables : encore plus compactes */
+  .at th,.at td{padding:.35rem .5rem;font-size:.72rem}
 }
 </style>
 </head>
