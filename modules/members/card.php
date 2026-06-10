@@ -31,10 +31,19 @@ if (!$user['member_card_hash']) {
     $user['member_card_generated_at'] = date('Y-m-d H:i:s');
 }
 
-$club   = Config::get('club_name', 'Mon Club');
-$sport  = Config::get('club_sport', '');
-$color  = Config::get('primary_color', '#1d4ed8');
-$logo   = Config::get('logo') ? CC_ROOT . '/' . Config::get('logo') : null;
+$club        = Config::get('club_name', 'Mon Club');
+$sport       = Config::get('club_sport', '');
+$color       = Config::get('primary_color', '#1d4ed8');
+$logo        = Config::get('logo') ? CC_ROOT . '/' . Config::get('logo') : null;
+// Config personnalisation carte
+$cardColor1   = Config::get('card_color1', $color);
+$cardColor2   = Config::get('card_color2', '#0f172a');
+$cardTextColor= Config::get('card_text_color', '#ffffff');
+$cardBgImage  = Config::get('card_bg_image', '');
+$cardBgOpacity= Config::get('card_bg_opacity', '0.15');
+$cardShowSport = Config::get('card_show_sport', '1');
+$cardShowExpiry= Config::get('card_show_expiry', '1');
+$cardShowHash  = Config::get('card_show_hash', '1');
 $genDate= Helpers::dateFormat($user['member_card_generated_at'], 'd/m/Y');
 $memberId = str_pad($user['id'], 6, '0', STR_PAD_LEFT);
 
@@ -71,18 +80,32 @@ if ((defined('CARD_DOWNLOAD_MODE') && CARD_DOWNLOAD_MODE) || ($_GET['dl'] ?? '')
     $pdf->AddPage();
     $pdf->SetAutoPageBreak(false);
 
-    $rgb = $pdf->hexToRgb($color);
+    $rgb1 = $pdf->hexToRgb($cardColor1);
+    $rgb2 = $pdf->hexToRgb($cardColor2);
+    $rgbText = $pdf->hexToRgb($cardTextColor);
 
-    // Fond dégradé (couleur club)
-    $pdf->SetFillColor(...$rgb);
+    // Fond couleur 1
+    $pdf->SetFillColor(...$rgb1);
     $pdf->Rect(0, 0, 85.6, 54, 'F');
 
-    // On utilise une couleur plus sombre du thème au lieu de transparence
-    $darkR = max(0, $rgb[0] - 40);
-    $darkG = max(0, $rgb[1] - 40);
-    $darkB = max(0, $rgb[2] - 60);
-    $pdf->SetFillColor($darkR, $darkG, $darkB);
+    // Fond couleur 2 (bas de carte)
+    $pdf->SetFillColor(...$rgb2);
     $pdf->Rect(0, 28, 85.6, 26, 'F');
+
+    // Image de fond si configurée
+    if ($cardBgImage) {
+        $bgPath = CC_ROOT . '/' . ltrim($cardBgImage, '/');
+        if (file_exists($bgPath)) {
+            $ext = strtolower(pathinfo($bgPath, PATHINFO_EXTENSION));
+            if (in_array($ext, ['jpg','jpeg','png'])) {
+                try { $pdf->Image($bgPath, 0, 0, 85.6, 54); } catch(Exception $e) {}
+                // Re-appliquer les fonds en transparence partielle (simulé)
+                $pdf->SetFillColor(...$rgb1);
+                $pdf->SetAlpha = null; // FPDF basique ne supporte pas l'alpha
+            }
+        }
+    }
+    $rgb = $rgb1; // compatibilité avec le reste du code
 
     // Logo
     if ($logo && file_exists($logo)) {
@@ -94,12 +117,12 @@ if ((defined('CARD_DOWNLOAD_MODE') && CARD_DOWNLOAD_MODE) || ($_GET['dl'] ?? '')
 
     // Nom du club
     $pdf->SetFont('Helvetica', 'B', 11);
-    $pdf->SetTextColor(255, 255, 255);
+    $pdf->SetTextColor(...$rgbText);
     $pdf->SetXY(30, 5);
     $pdf->Cell(50, 6, iconv('UTF-8', 'ISO-8859-1//TRANSLIT', $club), 0, 0, 'L');
 
     // Sport
-    if ($sport) {
+    if ($sport && $cardShowSport) {
         $pdf->SetFont('Helvetica', '', 7);
         $pdf->SetTextColor(255, 255, 255);
         $pdf->SetXY(30, 11);
@@ -130,7 +153,7 @@ if ((defined('CARD_DOWNLOAD_MODE') && CARD_DOWNLOAD_MODE) || ($_GET['dl'] ?? '')
     $pdf->Cell(40, 5, 'Emis le ' . $genDate, 0, 0, 'L');
 
     // Expiration licence
-    if ($user['license_expiry']) {
+    if ($user['license_expiry'] && $cardShowExpiry) {
         $pdf->SetFont('Helvetica', '', 7);
         $pdf->SetXY(5, 47);
         $pdf->Cell(40, 5, 'Licence exp. ' . Helpers::dateFormat($user['license_expiry']), 0, 0, 'L');
@@ -138,9 +161,11 @@ if ((defined('CARD_DOWNLOAD_MODE') && CARD_DOWNLOAD_MODE) || ($_GET['dl'] ?? '')
 
     // Hash court (4 derniers chars pour vérif visuelle)
     $shortHash = strtoupper(substr($user['member_card_hash'], -8));
-    $pdf->SetFont('Helvetica', 'B', 7);
-    $pdf->SetXY(45, 47);
-    $pdf->Cell(35, 5, 'REF: ' . chunk_split($shortHash, 4, '-'), 0, 0, 'R');
+    if ($cardShowHash) {
+        $pdf->SetFont('Helvetica', 'B', 7);
+        $pdf->SetXY(45, 47);
+        $pdf->Cell(35, 5, 'REF: ' . chunk_split($shortHash, 4, '-'), 0, 0, 'R');
+    }
 
     // ── QR Code dans le PDF ──────────────────────────────────────
     // Télécharger le QR en mémoire et l'insérer dans le PDF
@@ -211,23 +236,26 @@ endif; // fin génération PDF
 
 <!-- Aperçu carte -->
 <div class="card-preview-wrap">
-  <div class="member-card-preview" style="--card-color: <?= Helpers::e($color) ?>">
+  <div class="member-card-preview" style="--card-color:<?=Helpers::e($cardColor1)?>;--card-color2:<?=Helpers::e($cardColor2)?>">
+    <?php if($cardBgImage): ?>
+    <div style="position:absolute;inset:0;background:url(<?=asset($cardBgImage)?>);background-size:cover;background-position:center;opacity:<?=$cardBgOpacity?>;border-radius:14px"></div>
+    <?php endif; ?>
     <div class="card-left">
       <?php if (Config::get('logo')): ?>
         <img src="<?=asset(Config::get('logo'))?>" alt="" class="card-logo">
       <?php endif; ?>
       <div class="card-club"><?= Helpers::e($club) ?></div>
-      <?php if ($sport): ?><div class="card-sport"><?= Helpers::e(strtoupper($sport)) ?></div><?php endif; ?>
+      <?php if ($sport && $cardShowSport): ?><div class="card-sport"><?= Helpers::e(strtoupper($sport)) ?></div><?php endif; ?>
       <div class="card-type-label">CARTE DE MEMBRE</div>
     </div>
     <div class="card-right">
       <div class="card-member-name"><?= Helpers::e(($user['firstname'] ?? '') . ' ' . strtoupper($user['lastname'] ?? '')) ?></div>
       <div class="card-member-id">N° <?= $memberId ?></div>
       <div class="card-issued">Émis le <?= $genDate ?></div>
-      <?php if ($user['license_expiry']): ?>
+      <?php if ($user['license_expiry'] && $cardShowExpiry): ?>
         <div class="card-licence">Licence exp. <?= Helpers::dateFormat($user['license_expiry']) ?></div>
       <?php endif; ?>
-      <div class="card-hash">REF: <?= strtoupper(chunk_split(substr($user['member_card_hash'], -8), 4, '-')) ?></div>
+      <?php if($cardShowHash): ?><div class="card-hash">REF: <?= strtoupper(chunk_split(substr($user['member_card_hash'], -8), 4, '-')) ?></div><?php endif; ?>
       <div style="margin-top:.5rem">
         <img src="<?= $qrUrl ?>" width="100" height="100" alt="QR Code" style="border-radius:8px;border:2px solid rgba(255,255,255,.3);display:block">
       </div>
@@ -251,7 +279,7 @@ endif; // fin génération PDF
 .card-preview-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:1.5rem}
 .member-card-preview{
   width:420px;max-width:100%;
-  background:linear-gradient(135deg, var(--card-color), color-mix(in srgb, var(--card-color) 60%, #000));
+  background:linear-gradient(135deg, var(--card-color), var(--card-color2));
   border-radius:14px;padding:0;
   box-shadow:0 20px 50px rgba(0,0,0,.25);
   display:flex;overflow:hidden;

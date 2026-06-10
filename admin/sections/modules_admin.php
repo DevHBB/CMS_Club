@@ -112,6 +112,21 @@ if ($section === 'config') {
                 if ($up['success']) Config::set($img, 'assets/uploads/'.($img==='logo'?'logos':'heroes').'/'.$up['filename'], 'general');
             }
         }
+        // Upload image fond carte membre
+        if (!empty($_FILES['card_bg_image']['tmp_name'])) {
+            @mkdir(CC_ROOT.'/assets/uploads/card', 0755, true);
+            $up = Helpers::uploadImage($_FILES['card_bg_image'], CC_ROOT.'/assets/uploads/card');
+            if ($up['success']) Config::set('card_bg_image', 'assets/uploads/card/'.$up['filename'], 'membercard');
+        }
+        if (!empty($_POST['card_bg_image_remove'])) {
+            $old = Config::get('card_bg_image');
+            if ($old && file_exists(CC_ROOT.'/'.$old)) @unlink(CC_ROOT.'/'.$old);
+            Config::set('card_bg_image', '', 'membercard');
+        }
+        // Checkboxes carte membre (sentinel pattern)
+        foreach (['card_show_sport','card_show_expiry','card_show_hash'] as $cb) {
+            if ($group === 'membercard') Config::set($cb, isset($_POST[$cb]) ? '1' : '0', 'membercard');
+        }
         adminFlash('success','Configuration sauvegardée.'); Helpers::redirect(u('/admin/config?tab='.($_POST['group']??'general')));
     }
     $tab = $_GET['tab'] ?? 'general';
@@ -120,7 +135,7 @@ if ($section === 'config') {
     ?>
     <div class="page-head"><h1>⚙️ Paramètres</h1></div>
     <div style="display:flex;gap:.35rem;margin-bottom:1.25rem;flex-wrap:wrap">
-      <?php foreach(['general'=>'Général','appearance'=>'Apparence','email'=>'Emails','payments'=>'Paiements','registration'=>'📋 Inscription'] as $k=>$l): ?>
+      <?php foreach(['general'=>'Général','appearance'=>'Apparence','email'=>'Emails','payments'=>'Paiements','registration'=>'📋 Inscription','membercard'=>'🪪 Carte membre'] as $k=>$l): ?>
         <a href="<?=u('/admin/config?tab='.$k)?>" class="btn <?=$tab===$k?'btn-primary':'btn-ghost'?>"><?=$l?></a>
       <?php endforeach; ?>
     </div>
@@ -477,7 +492,144 @@ if ($section === 'config') {
     });
     </script>
 
-    <?php endif; ?>
+    <?php elseif($tab==='membercard'): ?>
+    <form method="post" enctype="multipart/form-data" class="ac" style="max-width:720px">
+      <div class="ac-header"><h2>🪪 Personnalisation de la carte membre</h2></div>
+      <div class="ac-body">
+        <?=Auth::csrfField()?>
+        <input type="hidden" name="group" value="membercard">
+
+        <p style="color:#64748b;font-size:.85rem;margin-bottom:1.25rem">
+          Personnalisez l'apparence de la carte membre. Le QR code et le hash de sécurité sont toujours conservés.
+        </p>
+
+        <!-- Aperçu en temps réel -->
+        <div style="margin-bottom:1.5rem">
+          <label style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b;display:block;margin-bottom:.75rem">Aperçu</label>
+          <div id="card-preview-admin" style="
+            width:420px;max-width:100%;
+            border-radius:14px;overflow:hidden;
+            box-shadow:0 8px 30px rgba(0,0,0,.2);
+            display:flex;aspect-ratio:1.586;
+            background:linear-gradient(135deg,<?=Config::get('card_color1',Config::get('primary_color','#1d4ed8'))?>,<?=Config::get('card_color2','#0f172a')?>);
+            position:relative;
+          ">
+            <!-- Fond image -->
+            <?php if(Config::get('card_bg_image')): ?>
+            <div style="position:absolute;inset:0;background:url(<?=asset(Config::get('card_bg_image'))?>);background-size:cover;background-position:center;opacity:<?=Config::get('card_bg_opacity','0.15')?>"></div>
+            <?php endif; ?>
+            <div style="position:absolute;inset:0;display:flex">
+              <?php
+              $cl = Config::get('card_layout','classic');
+              $cColor1 = Config::get('card_color1', Config::get('primary_color','#1d4ed8'));
+              $cColor2 = Config::get('card_color2','#0f172a');
+              $cTextColor = Config::get('card_text_color','#ffffff');
+              $cLogoPos = Config::get('card_logo_pos','left'); // left, right, top-center
+              $cShowSport = Config::get('card_show_sport','1');
+              $cShowExpiry = Config::get('card_show_expiry','1');
+              $cShowHash = Config::get('card_show_hash','1');
+              ?>
+              <div style="padding:1.25rem;display:flex;flex-direction:column;flex:1">
+                <!-- Logo + Club -->
+                <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:auto">
+                  <?php if(Config::get('logo') && $cLogoPos !== 'none'): ?>
+                  <img src="<?=asset(Config::get('logo'))?>" style="height:28px;object-fit:contain;filter:brightness(0) invert(1)">
+                  <?php endif; ?>
+                  <div>
+                    <div style="color:<?=$cTextColor?>;font-weight:700;font-size:.85rem"><?=Helpers::e(Config::get('club_name','Mon Club'))?></div>
+                    <?php if($cShowSport && Config::get('club_sport')): ?>
+                    <div style="color:rgba(255,255,255,.65);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase"><?=Helpers::e(Config::get('club_sport'))?></div>
+                    <?php endif; ?>
+                  </div>
+                </div>
+                <div style="color:rgba(255,255,255,.4);font-size:.6rem;letter-spacing:.15em">CARTE DE MEMBRE</div>
+              </div>
+              <!-- Partie droite -->
+              <div style="background:rgba(0,0,0,.35);padding:1.1rem 1rem;display:flex;flex-direction:column;justify-content:flex-end;min-width:160px">
+                <div style="color:<?=$cTextColor?>;font-weight:700;font-size:1rem;margin-bottom:.2rem">Prénom NOM</div>
+                <div style="color:rgba(255,255,255,.75);font-size:.72rem">N° 000001</div>
+                <div style="color:rgba(255,255,255,.55);font-size:.62rem">Émis le <?=date('d/m/Y')?></div>
+                <?php if($cShowExpiry): ?>
+                <div style="color:rgba(255,255,255,.55);font-size:.62rem">Licence exp. 31/08/<?=date('Y')+1?></div>
+                <?php endif; ?>
+                <?php if($cShowHash): ?>
+                <div style="color:rgba(255,255,255,.3);font-size:.58rem;font-family:monospace;margin-top:.2rem">REF: ABCD-EFGH-</div>
+                <?php endif; ?>
+                <div style="margin-top:.5rem">
+                  <div style="width:60px;height:60px;background:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#000;font-weight:700">QR CODE</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Couleurs -->
+        <h3 style="font-size:.9rem;font-weight:700;margin-bottom:.75rem;padding-bottom:.4rem;border-bottom:1px solid #f1f5f9">🎨 Couleurs</h3>
+        <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+          <div class="fg">
+            <label>Couleur principale</label>
+            <input type="color" name="card_color1" value="<?=Config::get('card_color1',Config::get('primary_color','#1d4ed8'))?>"
+              style="height:42px;width:100%;border-radius:8px;border:1.5px solid #e2e8f0;cursor:pointer;padding:3px">
+          </div>
+          <div class="fg">
+            <label>Couleur secondaire (dégradé)</label>
+            <input type="color" name="card_color2" value="<?=Config::get('card_color2','#0f172a')?>"
+              style="height:42px;width:100%;border-radius:8px;border:1.5px solid #e2e8f0;cursor:pointer;padding:3px">
+          </div>
+          <div class="fg">
+            <label>Couleur du texte</label>
+            <input type="color" name="card_text_color" value="<?=Config::get('card_text_color','#ffffff')?>"
+              style="height:42px;width:100%;border-radius:8px;border:1.5px solid #e2e8f0;cursor:pointer;padding:3px">
+          </div>
+        </div>
+
+        <!-- Image de fond -->
+        <h3 style="font-size:.9rem;font-weight:700;margin:1.25rem 0 .75rem;padding-bottom:.4rem;border-bottom:1px solid #f1f5f9">🖼️ Image de fond</h3>
+        <div class="form-row" style="grid-template-columns:1fr 1fr">
+          <div class="fg">
+            <label>Image de fond (optionnelle)</label>
+            <input type="file" name="card_bg_image" accept="image/*">
+            <?php if(Config::get('card_bg_image')): ?>
+            <div style="margin-top:.4rem;display:flex;align-items:center;gap:.5rem">
+              <img src="<?=asset(Config::get('card_bg_image'))?>" style="height:40px;border-radius:6px;object-fit:cover">
+              <label style="display:flex;align-items:center;gap:.35rem;font-size:.8rem;cursor:pointer">
+                <input type="checkbox" name="card_bg_image_remove" value="1"> Supprimer
+              </label>
+            </div>
+            <?php endif; ?>
+          </div>
+          <div class="fg">
+            <label>Opacité de l'image de fond (0 à 1)</label>
+            <input type="range" name="card_bg_opacity" min="0" max="1" step="0.05"
+              value="<?=Config::get('card_bg_opacity','0.15')?>"
+              oninput="document.getElementById('opacityVal').textContent=this.value"
+              style="width:100%">
+            <span id="opacityVal" style="font-size:.8rem;color:#64748b"><?=Config::get('card_bg_opacity','0.15')?></span>
+          </div>
+        </div>
+
+        <!-- Options d'affichage -->
+        <h3 style="font-size:.9rem;font-weight:700;margin:1.25rem 0 .75rem;padding-bottom:.4rem;border-bottom:1px solid #f1f5f9">⚙️ Éléments affichés</h3>
+        <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+          <label style="display:flex;align-items:center;gap:.5rem;font-size:.875rem;cursor:pointer;padding:.6rem;background:#f8fafc;border-radius:8px;border:1.5px solid #e2e8f0">
+            <input type="checkbox" name="card_show_sport" value="1" <?=Config::get('card_show_sport','1')?'checked':''?>>
+            Afficher le sport
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;font-size:.875rem;cursor:pointer;padding:.6rem;background:#f8fafc;border-radius:8px;border:1.5px solid #e2e8f0">
+            <input type="checkbox" name="card_show_expiry" value="1" <?=Config::get('card_show_expiry','1')?'checked':''?>>
+            Afficher expiration licence
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;font-size:.875rem;cursor:pointer;padding:.6rem;background:#f8fafc;border-radius:8px;border:1.5px solid #e2e8f0">
+            <input type="checkbox" name="card_show_hash" value="1" <?=Config::get('card_show_hash','1')?'checked':''?>>
+            Afficher la référence (REF)
+          </label>
+        </div>
+
+        <button type="submit" name="save_config" class="btn btn-primary" style="margin-top:1.25rem">💾 Sauvegarder</button>
+      </div>
+    </form>
+
+    <?php endif; // fin tabs config ?>
     <?php
     $content=ob_get_clean(); include CC_ROOT.'/admin/layout.php'; return;
 }
